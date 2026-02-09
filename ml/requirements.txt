@@ -1,0 +1,5 @@
+# ML dependencies
+pandas
+numpy
+scikit-learn
+torch
