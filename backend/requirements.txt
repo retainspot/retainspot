@@ -1,0 +1,4 @@
+# Backend dependencies
+fastapi
+uvicorn
+sqlalchemy
