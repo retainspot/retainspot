@@ -1,0 +1,9 @@
+# Change the name of the file to config.py và fill your database information
+
+USER = 'your_username_here'
+PASSWORD = 'your_password_here'
+HOST = 'localhost'
+PORT = '5432'
+DB_NAME = 'your_db_name_here'
+
+DATABASE_URL = f'postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}'
