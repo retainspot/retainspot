@@ -1,11 +1,16 @@
-import React from 'react';
-import Sidebar from './Sidebar';
+import React from "react";
+import Sidebar from "./Sidebar";
 
-const Layout = ({ children, activeTab, setActiveTab }) => {
+const Layout = ({ children, activeTab, setActiveTab, user, handleLogout }) => {
   return (
     <div className="app-layout">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        user={user}
+        handleLogout={handleLogout}
+      />
+
       <div className="main-content-wrapper">
         {/* HEADER */}
         <div className="main-header">
@@ -13,7 +18,11 @@ const Layout = ({ children, activeTab, setActiveTab }) => {
           <div className="header-right">
             <div className="header-search-container">
               <span className="search-icon">🔍</span>
-              <input type="text" placeholder="Search here..." className="header-search-input" />
+              <input
+                type="text"
+                placeholder="Search here..."
+                className="header-search-input"
+              />
             </div>
             <div className="header-lang">Eng (US)⌵</div>
             <div className="header-notif">
