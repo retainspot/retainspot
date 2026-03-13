@@ -13,7 +13,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   }, [initialCustomers]);
 
   const closeModal = () => setSelectedCustomer(null);
-
+  const [sortOrder, setSortOrder] = useState('desc');
   const isTrue = (val) => {
     if (val === undefined || val === null) return false;
     if (typeof val === 'boolean') return val;
@@ -23,23 +23,38 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   };
 
   const filteredCustomers = useMemo(() => {
-    return customersData.filter(c =>
+    let result = customersData.filter(c =>
       c.customerID.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [customersData, searchTerm]);
+
+    result.sort((a, b) => {
+      const scoreA = parseFloat(a.Churn_Score || 0);
+      const scoreB = parseFloat(b.Churn_Score || 0);
+
+      if (sortOrder === 'desc') {
+        return scoreB - scoreA;
+      } else {
+        return scoreA - scoreB;
+      }
+    });
+
+    return result;
+  }, [customersData, searchTerm, sortOrder]);
 
   const stats = useMemo(() => {
     const totalCustomers = customersData.length;
-    const churnedCustomers = customersData.filter(c => isTrue(c.Churn)).length;
-    const activeCustomers = totalCustomers - churnedCustomers;
-    const seniorCitizens = customersData.filter(c => isTrue(c.SeniorCitizen)).length;
+
+    const highRiskCustomers = customersData.filter(c => {
+      const score = parseFloat(c.Churn_Score || 0);
+      return score > 75;
+    }).length;
 
     return {
       total: totalCustomers,
-      active: activeCustomers,
-      churned: churnedCustomers,
-      churnRate: totalCustomers > 0 ? ((churnedCustomers / totalCustomers) * 100).toFixed(1) : 0,
-      seniorCitizens
+      active: totalCustomers - highRiskCustomers,
+      churned: highRiskCustomers,
+      churnRate: totalCustomers > 0 ? ((highRiskCustomers / totalCustomers) * 100).toFixed(1) : 0,
+      seniorCitizens: customersData.filter(c => isTrue(c.SeniorCitizen)).length
     };
   }, [customersData]);
 
@@ -52,6 +67,13 @@ const Customers = ({ customers: initialCustomers = [] }) => {
     if (typeof page === 'number' && page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
+  };
+
+  const getRiskStatus = (score) => {
+    const s = parseFloat(score || 0);
+    if (s > 75) return { label: 'High', class: 'churned' };
+    if (s >= 50) return { label: 'Medium', class: 'pending' };
+    return { label: 'Low', class: 'active' };
   };
 
   const handlePrevious = () => currentPage > 1 && setCurrentPage(currentPage - 1);
@@ -98,7 +120,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
     <div className="customers-page">
       <div className="customers-stats-row">
         {[
-          { label: 'Total Customers', val: stats.total.toLocaleString(), color: '#00AC4F', trend: `${stats.active.toLocaleString()} Active`, icon: '👥', iconBg: '#D3FFE7' },
+          { label: 'Total Customers', val: stats.total.toLocaleString(), color: '#00AC4F', trend: `${stats.active.toLocaleString()} Safe`, icon: '👥', iconBg: '#D3FFE7' },
           { label: 'Churned', val: stats.churned.toLocaleString(), color: '#D0004B', trend: `${stats.churnRate}% Rate`, icon: '❌', iconBg: '#FFE2E5' },
           { label: 'Senior Citizens', val: stats.seniorCitizens.toLocaleString(), icon: '👴', iconBg: '#F3E8FF' }
         ].map((item, idx) => (
@@ -148,7 +170,12 @@ const Customers = ({ customers: initialCustomers = [] }) => {
               <th>Phone</th>
               <th>Internet</th>
               <th>Contract</th>
-              <th style={{ textAlign: 'center' }}>Status</th>
+              <th
+                style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+              >
+                Status {sortOrder === 'desc' ? '▼' : '▲'}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -172,9 +199,14 @@ const Customers = ({ customers: initialCustomers = [] }) => {
                   <td>{internetType}</td>
                   <td>{contractType}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <span className={`status-badge ${isTrue(c.Churn) ? 'churned' : 'active'}`}>
-                      {isTrue(c.Churn) ? 'Churned' : 'Active'}
-                    </span>
+                    {(() => {
+                      const status = getRiskStatus(c.Churn_Score);
+                      return (
+                        <span className={`status-badge ${status.class}`}>
+                          {status.label}
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               );

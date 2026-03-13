@@ -855,3 +855,30 @@ body {
 .save-btn:hover {
   background: #4a28c7;
 }
+
+.status-badge.churned {
+  background-color: #FFEDED;
+  color: #D0004B;
+}
+
+.status-badge.active {
+  background-color: #D3FFE7;
+  color: #00AC4F;
+}
+
+.status-badge.pending {
+  background-color: #FFF2E0; 
+  color: #FF9500;
+}
+
+th {
+  transition: background-color 0.2s;
+}
+
+/* th:hover {
+  background-color: #f8f9fa;
+} */
+
+th[onClick] {
+  color: #5932EA;
+}

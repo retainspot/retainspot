@@ -17,10 +17,20 @@ app.add_middleware(
 @app.get("/api/customers")
 def get_customers():
     engine = get_engine()
-    query = "SELECT * FROM customers" 
+    query = """
+        SELECT 
+            c.*, 
+            b."Churn Score" AS "Churn_Score" 
+        FROM customers c
+        LEFT JOIN customer_behavior b ON c."customerID" = b."CustomerID"
+    """ 
     df = pd.read_sql(query, engine)
     
+    if 'Churn_Score' in df.columns:
+        df['Churn_Score'] = df['Churn_Score'].fillna(0)
+        
     return df.to_dict(orient='records')
+
 from fastapi import Body
 
 @app.post("/api/customers/{customer_id}/feedback")
