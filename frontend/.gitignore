@@ -2,10 +2,13 @@
 /.pnp
 .pnp.js
 
+# testing
 /coverage
 
+# production
 /build
 
+# misc
 .DS_Store
 .env.local
 .env.development.local

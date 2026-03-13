@@ -1,2 +1,0 @@
-# retainspot
-# Project overview
