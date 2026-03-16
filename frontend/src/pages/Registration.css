@@ -1,0 +1,204 @@
+/* ───────────────────────────────────────────────
+   REGISTRATION.CSS — RetainSpot Login / Sign Up
+─────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
+
+:root {
+  --brand: #5b21f4;
+  --brand-light: #7c3aed;
+  --brand-soft: #ede9fe;
+  --text-dark: #1e1b3a;
+  --text-mid: #4b5563;
+  --text-light: #9ca3af;
+  --bg-page: #f0f2fa;
+  --bg-card: #ffffff;
+  --border: #e5e7eb;
+  --input-bg: #f0f2fa;
+  --radius: 18px;
+  --shadow-card: 0 20px 80px rgba(92, 33, 244, 0.14);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.registration-wrapper {
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  background: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background effects */
+.registration-blob {
+  position: fixed; border-radius: 50%; pointer-events: none;
+  filter: blur(80px); opacity: 0.18;
+}
+.registration-blob--1 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, #6c47ff, #a78bfa);
+  top: -150px; right: -100px;
+}
+.registration-blob--2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, #22c55e, #6ee7b7);
+  bottom: -100px; left: -50px;
+}
+.registration-grid {
+  position: fixed; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(108,71,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108,71,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Back button */
+.registration-back {
+  position: fixed; top: 24px; left: 24px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid var(--border);
+  border-radius: 50px;
+  padding: 8px 18px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem; font-weight: 600;
+  color: var(--text-mid); cursor: pointer;
+  transition: all 0.2s; z-index: 10;
+}
+.registration-back:hover {
+  border-color: var(--brand); color: var(--brand);
+  background: #fff;
+}
+
+/* Card */
+.registration-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 48px 44px;
+  width: 100%; max-width: 440px;
+  display: flex; flex-direction: column; gap: 0;
+  position: relative; z-index: 1;
+  border: 1px solid rgba(108,71,255,0.08);
+  animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.registration-logo {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-bottom: 28px;
+}
+.logo-icon { font-size: 1.8rem; }
+.logo-text {
+  font-size: 1.4rem; font-weight: 700; color: var(--text-dark);
+}
+
+.registration-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.7rem; font-weight: 400;
+  color: var(--text-dark); text-align: center;
+  margin-bottom: 6px;
+}
+.registration-subtitle {
+  text-align: center; color: var(--text-light);
+  font-size: 0.9rem; margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* Error */
+.registration-error {
+  background: #fff0f0;
+  border: 1.5px solid #fca5a5;
+  color: #dc2626;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+/* Inputs */
+.registration-input {
+  display: block; width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  background: var(--input-bg);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.97rem; color: var(--text-dark);
+  outline: none; margin-bottom: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.registration-input:focus {
+  border-color: var(--brand);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(92,33,244,0.08);
+}
+.registration-input::placeholder { color: var(--text-light); }
+
+/* Primary button */
+.registration-btn-primary {
+  display: block; width: 100%;
+  padding: 15px;
+  border-radius: 12px; border: none;
+  background: var(--brand); color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  cursor: pointer; margin-top: 4px;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.registration-btn-primary:hover {
+  background: var(--brand-light);
+  box-shadow: 0 6px 20px rgba(92,33,244,0.35);
+  transform: translateY(-1px);
+}
+
+/* Divider */
+.registration-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0;
+  color: var(--text-light); font-size: 0.85rem;
+}
+.registration-divider::before,
+.registration-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Google button */
+.registration-btn-secondary {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem; font-weight: 600;
+  color: var(--text-dark); cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.registration-btn-secondary:hover {
+  border-color: #c0c8e0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+}
+
+/* Footer */
+.registration-footer {
+  text-align: center; margin-top: 22px;
+  color: var(--text-light); font-size: 0.9rem;
+}
+.registration-footer span {
+  color: var(--brand); font-weight: 700; cursor: pointer;
+  transition: opacity 0.2s;
+}
+.registration-footer span:hover { opacity: 0.75; }
+
+@media (max-width: 480px) {
+  .registration-card { padding: 36px 24px; }
+}
