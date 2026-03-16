@@ -6,6 +6,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState('desc');
   const rowsPerPage = 50;
 
   useEffect(() => {
@@ -13,7 +14,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   }, [initialCustomers]);
 
   const closeModal = () => setSelectedCustomer(null);
-  const [sortOrder, setSortOrder] = useState('desc');
+
   const isTrue = (val) => {
     if (val === undefined || val === null) return false;
     if (typeof val === 'boolean') return val;
@@ -23,19 +24,15 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   };
 
   const filteredCustomers = useMemo(() => {
-    let result = customersData.filter(c =>
-      c.customerID.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let result = customersData.filter(c => {
+      const id = c.CustomerID || ""; // Dùng C hoa
+      return id.toLowerCase().includes(searchTerm.toLowerCase());
+    });
 
     result.sort((a, b) => {
       const scoreA = parseFloat(a.Churn_Score || 0);
       const scoreB = parseFloat(b.Churn_Score || 0);
-
-      if (sortOrder === 'desc') {
-        return scoreB - scoreA;
-      } else {
-        return scoreA - scoreB;
-      }
+      return sortOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
     });
 
     return result;
@@ -43,18 +40,16 @@ const Customers = ({ customers: initialCustomers = [] }) => {
 
   const stats = useMemo(() => {
     const totalCustomers = customersData.length;
-
-    const highRiskCustomers = customersData.filter(c => {
-      const score = parseFloat(c.Churn_Score || 0);
-      return score > 75;
-    }).length;
+    const highRiskCustomers = customersData.filter(c => parseFloat(c.Churn_Score || 0) > 75).length;
 
     return {
       total: totalCustomers,
       active: totalCustomers - highRiskCustomers,
       churned: highRiskCustomers,
       churnRate: totalCustomers > 0 ? ((highRiskCustomers / totalCustomers) * 100).toFixed(1) : 0,
-      seniorCitizens: customersData.filter(c => isTrue(c.SeniorCitizen)).length
+      seniorCitizens: customersData.filter(c =>
+        c.Senior_Citizen === "Yes" || isTrue(c.Senior_Citizen)
+      ).length
     };
   }, [customersData]);
 
@@ -63,17 +58,17 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   const endIndex = startIndex + rowsPerPage;
   const currentCustomers = filteredCustomers.slice(startIndex, endIndex);
 
-  const handlePageChange = (page) => {
-    if (typeof page === 'number' && page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
   const getRiskStatus = (score) => {
     const s = parseFloat(score || 0);
     if (s > 75) return { label: 'High', class: 'churned' };
     if (s >= 50) return { label: 'Medium', class: 'pending' };
     return { label: 'Low', class: 'active' };
+  };
+
+  const handlePageChange = (page) => {
+    if (typeof page === 'number' && page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
   };
 
   const handlePrevious = () => currentPage > 1 && setCurrentPage(currentPage - 1);
@@ -99,19 +94,30 @@ const Customers = ({ customers: initialCustomers = [] }) => {
         body: JSON.stringify({ feedback }),
       });
 
+      const data = await response.json();
+      console.log("Dữ liệu từ API trả về:", data); // Hãy mở F12 để xem dòng này
+
       if (response.ok) {
+        const newLabel = data.sentiment ? data.sentiment.label : "N/A";
+
         const updatedList = customersData.map((c) =>
-          c.customerID === customerId ? { ...c, CustomerFeedback: feedback } : c
+          c.CustomerID === customerId
+            ? {
+              ...c,
+              CustomerFeedback: feedback,
+              sentiment_label_roberta: newLabel 
+            }
+            : c
         );
         setCustomersData(updatedList);
 
-        alert('Feedback saved successfully!');
+        alert(`Saved! AI Sentiment: ${newLabel}`);
         closeModal();
       } else {
         alert('Failed to save feedback.');
       }
     } catch (error) {
-      console.error('Error saving feedback:', error);
+      console.error('Error:', error);
       alert('Server error!');
     }
   };
@@ -120,7 +126,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
     <div className="customers-page">
       <div className="customers-stats-row">
         {[
-          { label: 'Total Customers', val: stats.total.toLocaleString(), color: '#00AC4F', trend: `${stats.active.toLocaleString()} Safe`, icon: '👥', iconBg: '#D3FFE7' },
+          { label: 'Total Customers', val: stats.total.toLocaleString(), color: '#00AC4F', trend: `${stats.active.toLocaleString()} Stable`, icon: '👥', iconBg: '#D3FFE7' },
           { label: 'Churned', val: stats.churned.toLocaleString(), color: '#D0004B', trend: `${stats.churnRate}% Rate`, icon: '❌', iconBg: '#FFE2E5' },
           { label: 'Senior Citizens', val: stats.seniorCitizens.toLocaleString(), icon: '👴', iconBg: '#F3E8FF' }
         ].map((item, idx) => (
@@ -179,34 +185,29 @@ const Customers = ({ customers: initialCustomers = [] }) => {
             </tr>
           </thead>
           <tbody>
-            {currentCustomers.map((c, i) => {
-              let contractType = isTrue(c['Contract_One year']) ? 'One year' : isTrue(c['Contract_Two year']) ? 'Two year' : 'Month-to-month';
-              let internetType = isTrue(c['InternetService_Fiber optic']) ? 'Fiber optic' : isTrue(c.InternetService_No) ? 'No' : 'DSL';
+            {currentCustomers.map((c) => {
+              let contractType = isTrue(c.Contract) ? c.Contract : 'Month-to-month';
+              let internetType = c.InternetService || 'DSL';
 
               return (
-                <tr key={c.customerID}>
+                <tr key={c.CustomerID}>
                   <td className="bold-cell">
                     <button className="id-link-btn" onClick={() => setSelectedCustomer(c)}>
-                      {c.customerID}
+                      {c.CustomerID}
                     </button>
                   </td>
-                  <td>{isTrue(c.gender) ? 'Male' : 'Female'}</td>
-                  <td>{isTrue(c.SeniorCitizen) ? 'Yes' : 'No'}</td>
+                  <td>{c.Gender || 'N/A'}</td>
+                  <td>{isTrue(c.Senior_Citizen) ? 'Yes' : 'No'}</td>
                   <td>{isTrue(c.Partner) ? 'Yes' : 'No'}</td>
                   <td>{isTrue(c.Dependents) ? 'Yes' : 'No'}</td>
-                  <td>{c.tenure ? parseFloat(c.tenure).toFixed(2) : 'N/A'}</td>
-                  <td>{isTrue(c.PhoneService) ? 'Yes' : 'No'}</td>
-                  <td>{internetType}</td>
-                  <td>{contractType}</td>
+                  <td>{c.Tenure_Months !== "" ? parseFloat(c.Tenure_Months).toFixed(0) : 'N/A'}</td>
+                  <td>{isTrue(c.Phone_Service) ? 'Yes' : 'No'}</td>
+                  <td>{c.Internet_Service || 'DSL'}</td>
+                  <td>{c.Contract || 'Month-to-month'}</td>
                   <td style={{ textAlign: 'center' }}>
-                    {(() => {
-                      const status = getRiskStatus(c.Churn_Score);
-                      return (
-                        <span className={`status-badge ${status.class}`}>
-                          {status.label}
-                        </span>
-                      );
-                    })()}
+                    <span className={`status-badge ${getRiskStatus(c.Churn_Score).class}`}>
+                      {getRiskStatus(c.Churn_Score).label}
+                    </span>
                   </td>
                 </tr>
               );
@@ -222,20 +223,27 @@ const Customers = ({ customers: initialCustomers = [] }) => {
                 <button className="close-btn" onClick={closeModal}>&times;</button>
               </div>
               <div className="modal-body">
-                <p><strong>Customer ID:</strong> #{selectedCustomer.customerID}</p>
+                <p><strong>Customer ID:</strong> #{selectedCustomer.CustomerID}</p>
                 <div className="feedback-section">
-                  <label>Feedback:</label>
+                  <label htmlFor="feedback">Write your feedback:</label>
                   <textarea
+                    key={selectedCustomer.CustomerID} // Buộc textarea re-render khi đổi khách hàng
                     id="feedback"
                     className="feedback-textarea"
                     placeholder="Enter notes..."
-                    defaultValue={selectedCustomer.CustomerFeedback || ''}
+                    defaultValue={selectedCustomer.CustomerFeedback || selectedCustomer.customerfeedback || ''}
                   ></textarea>
                 </div>
               </div>
               <div className="modal-footer">
                 <button className="cancel-btn" onClick={closeModal}>Cancel</button>
-                <button className="save-btn" onClick={() => handleSaveFeedback(selectedCustomer.customerID, document.getElementById('feedback').value)}>
+                <button
+                  className="save-btn"
+                  onClick={() => {
+                    const fbValue = document.getElementById('feedback').value;
+                    handleSaveFeedback(selectedCustomer.CustomerID, fbValue);
+                  }}
+                >
                   Save
                 </button>
               </div>
@@ -245,7 +253,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
 
         <div className="pagination-footer">
           <span>
-            Showing {startIndex + 1} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length} entries
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length.toLocaleString()} entries
           </span>
           <div className="pagination-controls">
             <button className="page-nav-btn" onClick={handlePrevious} disabled={currentPage === 1}>&lt;</button>
