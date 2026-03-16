@@ -95,7 +95,6 @@ const Customers = ({ customers: initialCustomers = [] }) => {
       });
 
       const data = await response.json();
-      console.log("Dữ liệu từ API trả về:", data); // Hãy mở F12 để xem dòng này
 
       if (response.ok) {
         const newLabel = data.sentiment ? data.sentiment.label : "N/A";
@@ -227,7 +226,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
                 <div className="feedback-section">
                   <label htmlFor="feedback">Write your feedback:</label>
                   <textarea
-                    key={selectedCustomer.CustomerID} // Buộc textarea re-render khi đổi khách hàng
+                    key={selectedCustomer.CustomerID} 
                     id="feedback"
                     className="feedback-textarea"
                     placeholder="Enter notes..."

@@ -1,4 +1,3 @@
-# app.py
 from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -48,7 +47,6 @@ def get_customers():
         return {"error": str(e)}, 500
 
 # app.py
-# app.py
 from fastapi.responses import JSONResponse
 @app.post("/api/customers/{customer_id}/feedback")
 def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
@@ -56,10 +54,7 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
         engine = get_engine()
         feedback_text = payload.get("feedback")
         
-        # Chạy AI
         label, score, num = predict_sentiment(feedback_text)
-        
-        # SỬA LỖI: Chuyển từ 1/0 sang True/False để khớp với kiểu boolean của DB
         has_feedback = True if feedback_text and feedback_text.strip() != "" else False
 
         with engine.connect() as conn:
@@ -81,7 +76,7 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
             conn.execute(query, {
                 "cid": customer_id.lower(),
                 "fb": feedback_text,
-                "has_fb": has_feedback, # Bây giờ giá trị này là True hoặc False
+                "has_fb": has_feedback,
                 "label": label,
                 "score": score,
                 "num": num
@@ -92,7 +87,6 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
 
     except Exception as e:
         from fastapi.responses import JSONResponse
-        print(f"Lỗi thực tế: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
     
 if __name__ == "__main__":
