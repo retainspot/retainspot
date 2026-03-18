@@ -4,33 +4,35 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Registration from "./pages/Registration";
-import { app, auth } from "./FirebaseAuth";
+import Home from "./pages/Home";
+import CustomerSupport from "./pages/CustomerSupport";
+import { auth } from "./FirebaseAuth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import Papa from "papaparse";
 
 function App() {
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("Dashboard");
+  const [activeTab, setActiveTab] = useState("Dashboard");   // post-login tabs
+  const [publicPage, setPublicPage] = useState("Home");       // pre-login pages
   const [customersData, setCustomersData] = useState([]);
 
+  // ── Auth listener ──────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      console.log("Auth User:", currentUser);
       setUser(currentUser);
     });
-
     return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      console.log("Logged out");
     } catch (error) {
       console.log(error);
     }
   };
-  // Your existing chart data
+
+  // ── Chart data ─────────────────────────────────────────
   const visitorData = [
     { month: "Jan", loyal: 20, new: 35, unique: 45 },
     { month: "Feb", loyal: 35, new: 25, unique: 35 },
@@ -53,8 +55,8 @@ function App() {
   const pieData = [
     { name: "Direct", value: 400, color: "#0095FF" },
     { name: "Social", value: 300, color: "#00E096" },
-    { name: "Email", value: 300, color: "#8884d8" },
-    { name: "Ads", value: 200, color: "#FFCF00" },
+    { name: "Email",  value: 300, color: "#8884d8" },
+    { name: "Ads",    value: 200, color: "#FFCF00" },
   ];
 
   const satisfactionData = [
@@ -64,6 +66,7 @@ function App() {
     { name: "Week 4", value: 90 },
   ];
 
+  // ── CSV load ───────────────────────────────────────────
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
@@ -84,10 +87,20 @@ function App() {
     fetchCustomers();
   }, []);
 
+  // ── PRE-LOGIN: public site ─────────────────────────────
   if (!user) {
-    return <Registration />;
+    if (publicPage === "Home") {
+      return <Home setPublicPage={setPublicPage} />;
+    }
+    if (publicPage === "Support") {
+      return <CustomerSupport setPublicPage={setPublicPage} />;
+    }
+    if (publicPage === "Login") {
+      return <Registration setPublicPage={setPublicPage} />;
+    }
   }
 
+  // ── POST-LOGIN: dashboard ──────────────────────────────
   return (
     <Layout
       activeTab={activeTab}

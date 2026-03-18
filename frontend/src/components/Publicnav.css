@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+.pub-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 200;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.pub-nav__inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 32px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+}
+
+.pub-nav__logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e1b3a;
+  cursor: pointer;
+}
+
+.pub-nav__logo span:first-child {
+  font-size: 1.4rem;
+}
+
+.pub-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.pub-nav__link {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4b5563;
+  padding: 8px 18px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.pub-nav__link:hover {
+  color: #5b21f4;
+  background: #ede9fe;
+}
+
+.pub-nav__link--active {
+  color: #5b21f4;
+  font-weight: 600;
+  background: #ede9fe;
+}
+
+/* Log In CTA button */
+.pub-nav__link--cta {
+  background: #5b21f4;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 9px 24px;
+  border-radius: 50px;
+}
+
+.pub-nav__link--cta:hover {
+  background: #7c3aed;
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(92, 33, 244, 0.4);
+  transform: translateY(-1px);
+}
+
+.pub-nav__link--cta-active {
+  background: #7c3aed;
+  color: #fff !important;
+}
