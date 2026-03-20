@@ -1,16 +1,37 @@
 import { useState } from "react";
+import emailjs from "@emailjs/browser";
 import PublicNav from "../components/Publicnav";
 import "./Home.css";
 
 function Home({ setPublicPage }) {
-  const [formData, setFormData] = useState({ email: "", usage: "" });
+  const [formData, setFormData] = useState({ company: "", email: "", usage: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSendError("");
+    setSending(true);
+    try {
+      await emailjs.send(
+        "service_99l8atl",      // ← replace with your EmailJS Service ID
+        "template_t0qh6vg",     // ← replace with your EmailJS Template ID
+        {
+          company:    formData.company,
+          from_email: formData.email,
+          usage:      formData.usage,
+        },
+        "lvA5yQ5B-kdchDmWY"       // ← replace with your EmailJS Public Key
+      );
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Email failed:", err);
+      setSendError("Something went wrong. Please try again.");
+    }
+    setSending(false);
   };
 
   const features = [
@@ -52,9 +73,10 @@ function Home({ setPublicPage }) {
             churn risk, and revenue health — all in one beautiful dashboard.
           </p>
           <div className="home-hero__cta">
-            <button className="home-btn home-btn--primary home-btn--lg" onClick={() => {
-              document.getElementById("request-access").scrollIntoView({ behavior: "smooth" });
-            }}>
+            <button
+              className="home-btn home-btn--primary home-btn--lg"
+              onClick={() => document.getElementById("request-access").scrollIntoView({ behavior: "smooth" })}
+            >
               Request Access
             </button>
             <button className="home-btn home-btn--outline home-btn--lg" onClick={() => setPublicPage("Support")}>
@@ -168,7 +190,7 @@ function Home({ setPublicPage }) {
             <div className="home-request__steps">
               <div className="home-request__step">
                 <span className="home-request__step-num">1</span>
-                <span>Fill in your email and use case below</span>
+                <span>Fill in your company, email and use case below</span>
               </div>
               <div className="home-request__step">
                 <span className="home-request__step-num">2</span>
@@ -190,10 +212,10 @@ function Home({ setPublicPage }) {
               <div className="home-request__success">
                 <span>🎉</span>
                 <h3>Request Received!</h3>
-                <p>We'll review your request and email you your login credentials within 24 hours.</p>
+                <p>We’ll review your request and reply to you within 24 hours.</p>
                 <button
                   className="home-btn home-btn--primary"
-                  onClick={() => { setSubmitted(false); setFormData({ email: "", usage: "" }); }}
+                  onClick={() => { setSubmitted(false); setFormData({ company: "", email: "", usage: "" }); }}
                 >
                   Submit Another
                 </button>
@@ -201,6 +223,24 @@ function Home({ setPublicPage }) {
             ) : (
               <form className="home-request__form" onSubmit={handleSubmit}>
                 <h3 className="home-request__form-title">Request Access</h3>
+
+                {sendError && (
+                  <div className="home-request__error">⚠️ {sendError}</div>
+                )}
+
+                <div className="home-request__field">
+                  <label>Company Name</label>
+                  <input
+                    className="home-request__input"
+                    type="text"
+                    name="company"
+                    placeholder="e.g. Acme Telecom"
+                    value={formData.company}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
                 <div className="home-request__field">
                   <label>Your Email Address</label>
                   <input
@@ -213,6 +253,7 @@ function Home({ setPublicPage }) {
                     required
                   />
                 </div>
+
                 <div className="home-request__field">
                   <label>How will you use RetainSpot?</label>
                   <textarea
@@ -225,9 +266,15 @@ function Home({ setPublicPage }) {
                     rows={5}
                   />
                 </div>
-                <button type="submit" className="home-btn home-btn--primary home-btn--lg home-btn--full">
-                  Send Request →
+
+                <button
+                  type="submit"
+                  className="home-btn home-btn--primary home-btn--lg home-btn--full"
+                  disabled={sending}
+                >
+                  {sending ? "Sending..." : "Send Request →"}
                 </button>
+
                 <p className="home-request__note">
                   Already have an account?{" "}
                   <span onClick={() => setPublicPage("Login")}>Log in here</span>
