@@ -1,4 +1,5 @@
 import { useState } from "react";
+import emailjs from "@emailjs/browser";
 import PublicNav from "../components/Publicnav";
 import "./CustomerSupport.css";
 
@@ -7,6 +8,8 @@ function CustomerSupport({ setPublicPage }) {
   const [openFaq, setOpenFaq] = useState(null);
   const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
 
   const faqs = [
     { q: "How do I get started with RetainSpot?",                  a: "Simply sign up for a free account, connect your customer data source (CSV upload supported), and your dashboard will populate automatically within minutes." },
@@ -28,9 +31,28 @@ function CustomerSupport({ setPublicPage }) {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSendError("");
+    setSending(true);
+    try {
+      await emailjs.send(
+        "service_99l8atl",        // same Service ID
+        "template_wux7y7e", // ← replace with your new support template ID
+        {
+          from_name:  formData.name,
+          from_email: formData.email,
+          subject:    formData.subject,
+          message:    formData.message,
+        },
+        "lvA5yQ5B-kdchDmWY"       // same Public Key
+      );
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Email failed:", err);
+      setSendError("Something went wrong. Please try again.");
+    }
+    setSending(false);
   };
 
   return (
@@ -102,7 +124,10 @@ function CustomerSupport({ setPublicPage }) {
                   <span className="cs-contact__success-icon">✅</span>
                   <h3>Message Sent!</h3>
                   <p>Thanks for reaching out. Our support team will get back to you within 24 hours.</p>
-                  <button className="cs-btn cs-btn--primary" onClick={() => { setSubmitted(false); setFormData({ name: "", email: "", subject: "", message: "" }); }}>
+                  <button
+                    className="cs-btn cs-btn--primary"
+                    onClick={() => { setSubmitted(false); setSendError(""); setFormData({ name: "", email: "", subject: "", message: "" }); }}
+                  >
                     Send Another
                   </button>
                 </div>
@@ -112,12 +137,16 @@ function CustomerSupport({ setPublicPage }) {
                     <h3 className="cs-contact__info-title">Get in touch</h3>
                     <p className="cs-contact__info-sub">We usually respond within 24 hours on business days.</p>
                     <div className="cs-contact__channels">
-                      <div className="cs-contact__channel"><span>📧</span><div><strong>Email</strong><span>support@retainspot.com</span></div></div>
+                      <div className="cs-contact__channel"><span>📧</span><div><strong>Email</strong><span>ahsancalgary@gmail.com</span></div></div>
                       <div className="cs-contact__channel"><span>💬</span><div><strong>Live Chat</strong><span>Available 9am – 5pm EST</span></div></div>
                       <div className="cs-contact__channel"><span>🐦</span><div><strong>Twitter / X</strong><span>@RetainSpot</span></div></div>
                     </div>
                   </div>
+
                   <form className="cs-contact__form" onSubmit={handleSubmit}>
+                    {sendError && (
+                      <div className="cs-send-error">⚠️ {sendError}</div>
+                    )}
                     <div className="cs-contact__row">
                       <div className="cs-contact__field">
                         <label>Your Name</label>
@@ -136,7 +165,13 @@ function CustomerSupport({ setPublicPage }) {
                       <label>Message</label>
                       <textarea className="cs-input cs-textarea" name="message" placeholder="Describe your issue or question..." value={formData.message} onChange={handleChange} required rows={5} />
                     </div>
-                    <button type="submit" className="cs-btn cs-btn--primary cs-btn--lg cs-btn--full">Send Message →</button>
+                    <button
+                      type="submit"
+                      className="cs-btn cs-btn--primary cs-btn--lg cs-btn--full"
+                      disabled={sending}
+                    >
+                      {sending ? "Sending..." : "Send Message →"}
+                    </button>
                   </form>
                 </div>
               )}
@@ -152,9 +187,8 @@ function CustomerSupport({ setPublicPage }) {
           <div className="cs-footer__links">
             <span onClick={() => setPublicPage("Home")}>Home</span>
             <span onClick={() => setPublicPage("Support")}>Support</span>
-            <span onClick={() => setPublicPage("Login")}>Login</span> 
-          </div> 
-          <br />
+            <span onClick={() => setPublicPage("Login")}>Login</span>
+          </div>
           <p className="cs-footer__copy">© 2026 RetainSpot. All rights reserved.</p>
         </div>
       </footer>

@@ -3,36 +3,102 @@ import "./App.css";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
+import Settings from "./pages/Settings";
+import Messages from "./pages/Messages";
 import Registration from "./pages/Registration";
 import Home from "./pages/Home";
 import CustomerSupport from "./pages/CustomerSupport";
 import { auth } from "./FirebaseAuth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { app } from "./FirebaseAuth";
 import Papa from "papaparse";
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("Dashboard");   // post-login tabs
-  const [publicPage, setPublicPage] = useState("Home");       // pre-login pages
-  const [customersData, setCustomersData] = useState([]);
+const db = getFirestore(app);
 
-  // ── Auth listener ──────────────────────────────────────
+function App() {
+  const [user, setUser]                     = useState(null);
+  const [userProfile, setUserProfile]       = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [activeTab, setActiveTab]           = useState("Dashboard");
+  const [publicPage, setPublicPage]         = useState("Home");
+  const [customersData, setCustomersData]   = useState([]);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+
+      if (currentUser) {
+        try {
+          // ── Step 1: Try users collection first ──────────
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+
+          if (userDoc.exists()) {
+            const profile = userDoc.data();
+            // Fetch company name
+            if (profile.companyId) {
+              const companyDoc = await getDoc(doc(db, "companies", profile.companyId));
+              if (companyDoc.exists()) {
+                profile.companyName = companyDoc.data().name;
+              }
+            }
+            setUserProfile(profile);
+
+          } else {
+            // ── Step 2: Fallback to subAccounts ───────────
+            // Only match by uid field (not email) to avoid picking up wrong docs
+            const q = query(
+              collection(db, "subAccounts"),
+              where("uid", "==", currentUser.uid)
+            );
+            const snapshot = await getDocs(q);
+
+            if (!snapshot.empty) {
+              const profile = snapshot.docs[0].data();
+              // Fetch company name
+              if (profile.companyId) {
+                const companyDoc = await getDoc(doc(db, "companies", profile.companyId));
+                if (companyDoc.exists()) {
+                  profile.companyName = companyDoc.data().name;
+                }
+              }
+              setUserProfile(profile);
+            } else {
+              // No profile = super admin
+              setUserProfile(null);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
+          setUserProfile(null);
+        }
+      } else {
+        setUserProfile(null);
+      }
+
+      setProfileLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setUserProfile(null);
     } catch (error) {
       console.log(error);
     }
   };
 
-  // ── Chart data ─────────────────────────────────────────
   const visitorData = [
     { month: "Jan", loyal: 20, new: 35, unique: 45 },
     { month: "Feb", loyal: 35, new: 25, unique: 35 },
@@ -66,7 +132,6 @@ function App() {
     { name: "Week 4", value: 90 },
   ];
 
-  // ── CSV load ───────────────────────────────────────────
   useEffect(() => {
     Papa.parse("/cleaned_telco.csv", {
       download: true,
@@ -76,20 +141,60 @@ function App() {
     });
   }, []);
 
-  // ── PRE-LOGIN: public site ─────────────────────────────
-  if (!user) {
-    if (publicPage === "Home") {
-      return <Home setPublicPage={setPublicPage} />;
-    }
-    if (publicPage === "Support") {
-      return <CustomerSupport setPublicPage={setPublicPage} />;
-    }
-    if (publicPage === "Login") {
-      return <Registration setPublicPage={setPublicPage} />;
-    }
+  if (profileLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f0f2fa",
+      }}>
+        <div style={{
+          width: 36, height: 36,
+          border: "4px solid #ede9fe",
+          borderTopColor: "#5b21f4",
+          borderRadius: "50%",
+          animation: "spin 0.7s linear infinite",
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
   }
 
-  // ── POST-LOGIN: dashboard ──────────────────────────────
+  if (!user) {
+    if (publicPage === "Home")    return <Home setPublicPage={setPublicPage} />;
+    if (publicPage === "Support") return <CustomerSupport setPublicPage={setPublicPage} />;
+    if (publicPage === "Login")   return <Registration setPublicPage={setPublicPage} />;
+  }
+
+  const renderPage = () => {
+    switch (activeTab) {
+      case "Dashboard":
+        return (
+          <Dashboard
+            visitorData={visitorData}
+            revenueData={revenueData}
+            pieData={pieData}
+            satisfactionData={satisfactionData}
+          />
+        );
+      case "Customers":
+        return <Customers customers={customersData} />;
+      case "Messages":
+        return <Messages user={user} userProfile={userProfile} />;
+      case "Settings":
+        return <Settings user={user} userProfile={userProfile} />;
+      default:
+        return (
+          <div style={{ padding: "32px" }}>
+            <h2 style={{ color: "#1e1b3a", marginBottom: "8px" }}>{activeTab}</h2>
+            <p style={{ color: "#9ca3af" }}>This page is coming soon...</p>
+          </div>
+        );
+    }
+  };
+
   return (
     <Layout
       activeTab={activeTab}
@@ -97,20 +202,7 @@ function App() {
       user={user}
       handleLogout={handleLogout}
     >
-      {activeTab === "Dashboard" ? (
-        <Dashboard
-          visitorData={visitorData}
-          revenueData={revenueData}
-          pieData={pieData}
-          satisfactionData={satisfactionData}
-        />
-      ) : activeTab === "Customers" ? (
-        <Customers customers={customersData} />
-      ) : (
-        <div style={{ padding: "20px" }}>
-          Content for {activeTab} coming soon...
-        </div>
-      )}
+      {renderPage()}
     </Layout>
   );
 }

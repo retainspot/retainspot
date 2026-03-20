@@ -385,3 +385,12 @@
   .home-stats__inner { grid-template-columns: 1fr 1fr; }
   .home-cta-banner { margin: 0 12px 60px; padding: 60px 24px; }
 }
+
+.home-request__error {
+  background: #fff0f0;
+  border: 1.5px solid #fca5a5;
+  color: #dc2626;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+}

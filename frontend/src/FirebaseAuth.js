@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore"
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -16,9 +17,15 @@ const firebaseConfig = {
   appId: "1:111803469059:web:eccd49ea5d9c9abfde2d36",
   measurementId: "G-2RRWCGHBC1",
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app); 
+// Initialize Firebase — primary app (your main session)
+const app       = initializeApp(firebaseConfig);
+const auth      = getAuth(app);
 const analytics = getAnalytics(app);
-export { app, auth, analytics };
+const db        = getFirestore(app);
+ 
+// Secondary app — used ONLY for creating sub-accounts
+// Prevents createUserWithEmailAndPassword from signing you out
+const secondaryApp  = initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = getAuth(secondaryApp);
+ 
+export { app, auth, analytics, db, secondaryApp, secondaryAuth };
