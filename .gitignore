@@ -1,4 +1,8 @@
-*.pyc
-__pycache__/
-.env
 node_modules/
+**/node_modules/
+
+__pycache__/
+*.pyc
+
+database/config.py
+.env
