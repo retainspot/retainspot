@@ -64,7 +64,8 @@ def predict_bulk_churn():
         
         if df_to_predict.empty:
             return {"message": "Every customers have churn score!"}
-
+        df_to_predict['Total Charges'] = pd.to_numeric(df_to_predict['Total Charges'], errors='coerce')
+        df_to_predict['Total Charges'] = df_to_predict['Total Charges'].fillna(0).astype(float)
         df_to_predict['CustomerID'] = df_to_predict['CustomerID'].astype(str).str.upper().str.strip()
         df_to_predict['HasFeedback'] = df_to_predict['HasFeedback'].fillna('FALSE').astype(str)
         df_to_predict['sentiment_num_roberta'] = df_to_predict['sentiment_num_roberta'].fillna(3.0)
