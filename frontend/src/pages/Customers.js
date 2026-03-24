@@ -7,6 +7,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [activeTab, setActiveTab] = useState('feedback');
   const rowsPerPage = 50;
 
   useEffect(() => {
@@ -104,7 +105,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
             ? {
               ...c,
               CustomerFeedback: feedback,
-              sentiment_label_roberta: newLabel 
+              sentiment_label_roberta: newLabel
             }
             : c
         );
@@ -218,33 +219,66 @@ const Customers = ({ customers: initialCustomers = [] }) => {
           <div className="modal-overlay" onClick={closeModal}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>Admin Feedback</h2>
+                <h2>Customer Details</h2>
                 <button className="close-btn" onClick={closeModal}>&times;</button>
               </div>
+
+              <div className="tab-navigation">
+                <button
+                  className={activeTab === 'feedback' ? 'tab-btn active' : 'tab-btn'}
+                  onClick={() => setActiveTab('feedback')}
+                >
+                  Admin Feedback
+                </button>
+                <button
+                  className={activeTab === 'recommendation' ? 'tab-btn active' : 'tab-btn'}
+                  onClick={() => setActiveTab('recommendation')}
+                >
+                  AI Recommendation
+                </button>
+              </div>
+
               <div className="modal-body">
                 <p><strong>Customer ID:</strong> #{selectedCustomer.CustomerID}</p>
-                <div className="feedback-section">
-                  <label htmlFor="feedback">Write your feedback:</label>
-                  <textarea
-                    key={selectedCustomer.CustomerID} 
-                    id="feedback"
-                    className="feedback-textarea"
-                    placeholder="Enter notes..."
-                    defaultValue={selectedCustomer.CustomerFeedback || selectedCustomer.customerfeedback || ''}
-                  ></textarea>
-                </div>
+
+                {activeTab === 'feedback' && (
+                  <div className="feedback-section">
+                    <label htmlFor="feedback">Write your feedback:</label>
+                    <textarea
+                      key={`fb-${selectedCustomer.CustomerID}`}
+                      id="feedback"
+                      className="feedback-textarea"
+                      placeholder="Enter notes..."
+                      defaultValue={selectedCustomer.CustomerFeedback || selectedCustomer.customerfeedback || ''}
+                    ></textarea>
+                  </div>
+                )}
+
+                {activeTab === 'recommendation' && (
+                  <div className="feedback-section">
+                    <label>Suggestion:</label>
+                    <div className="feedback-textarea recommendation-box">
+                      {selectedCustomer.Churn_Score > 70
+                        ? "High Risk! Offer 20% discount or a free upgrade to fiber optic."
+                        : "Stable customer. Recommend annual contract for long-term loyalty."}
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div className="modal-footer">
                 <button className="cancel-btn" onClick={closeModal}>Cancel</button>
-                <button
-                  className="save-btn"
-                  onClick={() => {
-                    const fbValue = document.getElementById('feedback').value;
-                    handleSaveFeedback(selectedCustomer.CustomerID, fbValue);
-                  }}
-                >
-                  Save
-                </button>
+                {activeTab === 'feedback' && (
+                  <button
+                    className="save-btn"
+                    onClick={() => {
+                      const fbValue = document.getElementById('feedback').value;
+                      handleSaveFeedback(selectedCustomer.CustomerID, fbValue);
+                    }}
+                  >
+                    Save Feedback
+                  </button>
+                )}
               </div>
             </div>
           </div>
