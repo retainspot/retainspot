@@ -8,4 +8,4 @@ database/config.py
 .env
 venv_demo/
 venv_312/
-.env
+./backend/app/.env

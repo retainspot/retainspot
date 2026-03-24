@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import '../App.css';
+import axios from 'axios';
 
 const Customers = ({ customers: initialCustomers = [] }) => {
   const [customersData, setCustomersData] = useState(initialCustomers);
@@ -8,8 +9,27 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
   const [activeTab, setActiveTab] = useState('feedback');
+  const [recommendationData, setRecommendationData] = useState(null);
+  const [loadingRec, setLoadingRec] = useState(false);
   const rowsPerPage = 50;
+  const fetchRecommendation = async (customerId) => {
+    setRecommendationData(null)
+    setLoadingRec(true);
+    try {
+      const response = await axios.get(`http://localhost:8000/api/customers/${customerId}/recommendation`);
+      setRecommendationData(response.data);
+    } catch (error) {
+      console.error("Error fetching recommendation:", error);
+    } finally {
+      setLoadingRec(false);
+    }
+  };
 
+  useEffect(() => {
+    if (selectedCustomer && activeTab === 'recommendation') {
+      fetchRecommendation(selectedCustomer.CustomerID);
+    }
+  }, [selectedCustomer, activeTab]);
   useEffect(() => {
     setCustomersData(initialCustomers);
   }, [initialCustomers]);
@@ -258,9 +278,11 @@ const Customers = ({ customers: initialCustomers = [] }) => {
                   <div className="feedback-section">
                     <label>Suggestion:</label>
                     <div className="feedback-textarea recommendation-box">
-                      {selectedCustomer.Churn_Score > 70
-                        ? "High Risk! Offer 20% discount or a free upgrade to fiber optic."
-                        : "Stable customer. Recommend annual contract for long-term loyalty."}
+                      {loadingRec ? (
+                        "AI is analyzing..."
+                      ) : (
+                        recommendationData?.recommendation || "No recommendation available."
+                      )}
                     </div>
                   </div>
                 )}

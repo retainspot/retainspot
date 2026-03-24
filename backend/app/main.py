@@ -15,6 +15,7 @@ import numpy as np
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 from groq import Groq
 from dotenv import load_dotenv
+from sklearn.pipeline import Pipeline
 if root_path not in sys.path:
     sys.path.append(root_path)
 
@@ -43,9 +44,53 @@ class DTypeCaster(BaseEstimator, TransformerMixin):
                 X[col] = X[col].astype(dtype)
         return X
 
+
 CHURN_PIPELINE = joblib.load("ml/models/churn_pipeline.pkl")
 SDV_SYNTHESIZER = joblib.load("ml/models/gc_synthesizer.pkl")
+CHURN_EXPLAINER = joblib.load('ml/models/explainer.pkl')
 
+def load_explainer(explainer_path):
+    explainer = joblib.load(explainer_path)
+    return explainer
+def apply_preprocessor(df, pipeline):
+    X_transformed = df.copy()
+    for name, step in pipeline.steps[:-1]:
+        X_transformed = step.transform(X_transformed)
+    return X_transformed
+def get_customer_explanation(customer_id):
+    engine = get_engine()
+    query = text("""
+        SELECT i.*, f.* FROM customers_info i 
+        JOIN customer_feedback f ON UPPER(i."CustomerID") = UPPER(f."customerID")
+        WHERE UPPER(i."CustomerID") = :cid
+    """)
+    
+    with engine.connect() as conn:
+        df_customer = pd.read_sql(query, conn, params={"cid": customer_id.upper()})
+    
+    if df_customer.empty:
+        return None
+
+    df_customer['Total Charges'] = pd.to_numeric(df_customer['Total Charges'], errors='coerce').fillna(0)
+    customer_data = df_customer.drop(columns=['Churn Score'], errors='ignore')
+    
+    customer_data_tf = apply_preprocessor(customer_data, CHURN_PIPELINE)
+    customer_data_np = np.array(customer_data_tf, dtype=np.float64)
+    feature_names = customer_data_tf.columns.tolist()
+    
+    shap_results = CHURN_EXPLAINER(customer_data_np, check_additivity=False)
+    
+    if len(shap_results.shape) == 3:
+        shap_values = shap_results[0, :, 1] 
+    else:
+        shap_values = shap_results[0]
+
+    important_features = pd.DataFrame({
+        'Feature': feature_names,
+        'SHAP Value': shap_values.values
+    }).sort_values('SHAP Value', ascending=False)
+
+    return important_features
 @app.post("/api/predict-bulk-churn")
 def predict_bulk_churn():
     try:
@@ -93,6 +138,30 @@ def predict_bulk_churn():
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+@app.get("/api/customers/{customer_id}/recommendation")
+def get_recommendation(customer_id: str):
+    features = get_customer_explanation(customer_id)
+    if features is None:
+        return {"recommendation": "Customer not found."}
+
+    top_feature = features.iloc[0]['Feature']
+    
+    recommendation = "Our AI suggests: "
+    if "Contract_Month-to-month" in top_feature:
+        recommendation += "This customer is on a short-term contract. Offer a 1-year plan with a 15% discount to increase loyalty."
+    elif "Monthly Charges" in top_feature:
+        recommendation += "High monthly bills are a concern. Suggest a more cost-effective bundle or a loyalty rebate."
+    elif "Tech Support_No" in top_feature:
+        recommendation += "Lack of tech support is driving risk. Provide a free 'Premium Support' trial period."
+    elif "Tenure Months" in top_feature:
+        recommendation += "This is a new customer. Send a welcome gift or a 'first-month' follow-up call to ensure satisfaction."
+    else:
+        recommendation += "Monitor usage patterns and proactively offer a personalized feedback session."
+
+    return {
+        "recommendation": recommendation,
+        "top_influencing_factors": features.to_dict(orient='records')
+    }
 
 def generate_unique_ids(n):
     ids = set()
