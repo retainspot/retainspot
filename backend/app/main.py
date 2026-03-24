@@ -13,11 +13,15 @@ import joblib
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from groq import Groq
+from dotenv import load_dotenv
 if root_path not in sys.path:
     sys.path.append(root_path)
 
 app = FastAPI()
-
+load_dotenv()
+GROQ_KEY = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=GROQ_KEY)
 class SafeColumnDropper(BaseEstimator, TransformerMixin):
     def __init__(self, columns):
         self.columns = columns
@@ -221,6 +225,44 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
             "sentiment": {"label": label, "score": score}
         }
 
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+@app.post("/api/chat")
+async def chat_with_ai(payload: dict):
+    try:
+        messages = payload.get("messages", [])
+        system_instructions = {
+            'role':'system',
+            'content':
+        """
+        You are 'RetainSpot AI'. Your goal is to provide information in a BEAUTIFUL and READABLE way.
+
+        IMPORTANT UI RULES:
+        1. USE EMOJIS to start each point.
+        2. ALWAYS add a blank line between every single bullet point.
+        3. DO NOT Use **Bold** for technical terms.
+        4. Keep each bullet point short and punchy.
+
+        YOUR KNOWLEDGE BASE (FAQ):
+        - Churn Prediction: Real-time risk scoring (0-100%) using a Random Forest model.
+        - Sentiment Analysis: Understanding customer emotions via the RoBERTa model.
+        - Data Simulation: Generating realistic samples with SDV (Synthetic Data Vault).
+        - AI Recommendations: Personalized retention suggestions based on customer behavior.
+        - Tech Stack: Built with React, FastAPI, PostgreSQL, and Scikit-learn.
+        - Performance: Our model achieves 96.7% Accuracy and 0.95 ROC AUC.
+        STRICT OPERATING RULES:
+        - ONLY answer about RetainSpot or Churn.
+        - For unrelated topics, say: "I'm sorry, I specialize in RetainSpot and Customer Retention. How can I help with those?"
+        - Respond in the language used by the user.
+        """}
+        
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[system_instructions] + messages,
+            temperature=0.7,
+        )
+        
+        return {"content": completion.choices[0].message.content}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
     
