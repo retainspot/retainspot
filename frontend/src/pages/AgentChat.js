@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AgentChat.css';
 
 const agents = [
@@ -10,11 +10,23 @@ const agents = [
 ];
 
 const AgentChat = () => {
-    const [activeAgentId, setActiveAgentId] = useState(null); 
-    const [isThinking, setIsThinking] = useState(false);     
-    const [messages, setMessages] = useState([
-        { sender: 'agent', text: "Hello Admin, I am your System Supervisor. Tell me any database operation you need." }
-    ]);
+    const [activeAgentId, setActiveAgentId] = useState(() => {
+        const savedAgent = localStorage.getItem('active_agent_id');
+        return savedAgent ? parseInt(savedAgent) : null;
+    });
+    const [isThinking, setIsThinking] = useState(false);
+    const [messages, setMessages] = useState(() => {
+        const saved = localStorage.getItem('agent_chat_history');
+        return saved ? JSON.parse(saved) : [
+            { sender: 'agent', text: "Hello Admin, I am your System Supervisor. Tell me any database operation you need." }
+        ];
+    });
+    useEffect(() => {
+        localStorage.setItem('agent_chat_history', JSON.stringify(messages));
+        if (activeAgentId) {
+            localStorage.setItem('active_agent_id', activeAgentId);
+        }
+    }, [messages, activeAgentId]);
     const [input, setInput] = useState("");
     const handleSend = () => {
         if (!input.trim()) return;
@@ -25,7 +37,7 @@ const AgentChat = () => {
         setInput("");
 
         setIsThinking(true);
-        setActiveAgentId(null); 
+        setActiveAgentId(null);
 
         setTimeout(() => {
             let assignedId = 5;
@@ -112,9 +124,9 @@ const AgentChat = () => {
                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                             disabled={isThinking}
                         />
-                        <button 
-                            className="ops-send-btn" 
-                            onClick={handleSend} 
+                        <button
+                            className="ops-send-btn"
+                            onClick={handleSend}
                             disabled={isThinking}
                             style={{ opacity: isThinking ? 0.5 : 1 }}
                         >
