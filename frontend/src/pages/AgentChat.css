@@ -34,7 +34,6 @@
     color: #111827 !important; 
 }
 
-/* 3. Các mục Agent trong danh sách */
 .agent-nav-item { 
     display: flex; 
     align-items: center; 
@@ -70,7 +69,6 @@
 .nav-name { font-size: 14px; font-weight: 600; color: #111827 !important; margin: 0; }
 .nav-role { font-size: 12px; color: #6b7280; margin: 0; }
 
-/* 4. Khung chat ở giữa */
 .ops-chat-container { 
     flex: 1; 
     display: flex; 
@@ -89,7 +87,6 @@
 .header-agent-info h4 { margin: 0; font-size: 18px; font-weight: 700; color: #111827 !important; }
 .status-dot { color: #10b981; font-size: 12px; display: block; margin-top: 4px; font-weight: 500; }
 
-/* 5. Vùng hiển thị tin nhắn */
 .ops-messages-view { 
     flex: 1; 
     padding: 35px; 
@@ -112,7 +109,6 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 
-/* Màu bóng chat Agent (Bên trái) */
 .ops-bubble-wrapper.agent .ops-bubble { 
     background: #ffffff !important; 
     color: #374151 !important; 
@@ -120,7 +116,6 @@
     font-style: italic;
 }
 
-/* Màu bóng chat User (Bên phải) */
 .ops-bubble-wrapper.user .ops-bubble { 
     background: #f3f4f6 !important; 
     color: #111827 !important; 
@@ -128,7 +123,6 @@
     font-weight: 500;
 }
 
-/* 6. Vùng nhập liệu */
 .ops-input-area { padding: 30px 40px; }
 
 .input-inner { 
@@ -166,7 +160,6 @@
 
 .ops-send-btn:hover { background: #e5e7eb !important; transform: scale(1.05); }
 
-/* 7. Sidebar bên phải */
 .ops-sidebar-right { 
     width: 300px; 
     background: rgba(255, 255, 255, 0.3) !important; 
@@ -194,7 +187,6 @@
 .ops-sidebar-right h3 { color: #111827 !important; margin: 0; font-size: 20px; font-weight: 700; }
 .profile-role-tag { color: #3b82f6 !important; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
 
-/* Các chỉ số stats */
 .agent-stats-grid { 
     display: grid; 
     grid-template-columns: 1fr 1fr; 
@@ -239,3 +231,35 @@
 @keyframes pulse-bg { 0% { background: transparent; } 50% { background: rgba(59, 130, 246, 0.1); } 100% { background: transparent; } }
 
 .thinking-dots { font-style: italic; color: #6b7280 !important; background: transparent !important; box-shadow: none !important; }
+.clear-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 8px 15px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clear-chat-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    border-color: #fecaca;
+    transform: translateY(-1px);
+}
+
+.clear-icon {
+    font-size: 14px;
+}
+.ops-chat-header {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}

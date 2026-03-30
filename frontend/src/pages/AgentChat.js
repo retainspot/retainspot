@@ -28,6 +28,17 @@ const AgentChat = () => {
         }
     }, [messages, activeAgentId]);
     const [input, setInput] = useState("");
+    const clearChat = () => {
+        if (window.confirm("Are you sure you want to delete this conversation?")) {
+            localStorage.removeItem('agent_chat_history');
+            localStorage.removeItem('active_agent_id');
+            setMessages([{
+                sender: 'agent',
+                text: "Hello Admin, I am your System Supervisor. Tell me any database operation you need."
+            }]);
+            setActiveAgentId(null);
+        }
+    };
     const handleSend = () => {
         if (!input.trim()) return;
 
@@ -97,8 +108,10 @@ const AgentChat = () => {
                         <h4>System Supervisor</h4>
                         <span className="status-dot">● {isThinking ? "Analyzing Request..." : "Ready"}</span>
                     </div>
+                    <button className="clear-chat-btn" onClick={clearChat} title="Clear Chat">
+                        Clear
+                    </button>
                 </div>
-
                 <div className="ops-messages-view">
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`ops-bubble-wrapper ${msg.sender}`}>
@@ -130,7 +143,7 @@ const AgentChat = () => {
                             disabled={isThinking}
                             style={{ opacity: isThinking ? 0.5 : 1 }}
                         >
-                            🚀
+                            ➤
                         </button>
                     </div>
                 </div>
