@@ -139,29 +139,60 @@ def predict_bulk_churn():
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 @app.get("/api/customers/{customer_id}/recommendation")
-def get_recommendation(customer_id: str):
-    features = get_customer_explanation(customer_id)
-    if features is None:
-        return {"recommendation": "Customer not found."}
-
-    top_feature = features.iloc[0]['Feature']
+def get_ai_recommendation(customer_id: str):
+    features_df = get_customer_explanation(customer_id)
+    if features_df is None:
+        return {"recommendation": "Customer not found.", "top_influencing_factors": []}
+    engine = get_engine()
+    feedback_query = text('SELECT "CustomerFeedback" FROM customer_feedback WHERE UPPER("customerID") = :cid')
     
-    recommendation = "Our AI suggests: "
-    if "Contract_Month-to-month" in top_feature:
-        recommendation += "This customer is on a short-term contract. Offer a 1-year plan with a 15% discount to increase loyalty."
-    elif "Monthly Charges" in top_feature:
-        recommendation += "High monthly bills are a concern. Suggest a more cost-effective bundle or a loyalty rebate."
-    elif "Tech Support_No" in top_feature:
-        recommendation += "Lack of tech support is driving risk. Provide a free 'Premium Support' trial period."
-    elif "Tenure Months" in top_feature:
-        recommendation += "This is a new customer. Send a welcome gift or a 'first-month' follow-up call to ensure satisfaction."
-    else:
-        recommendation += "Monitor usage patterns and proactively offer a personalized feedback session."
+    customer_feedback = ""
+    with engine.connect() as conn:
+        result = conn.execute(feedback_query, {"cid": customer_id.upper()}).fetchone()
+        if result and result[0]:
+            customer_feedback = str(result[0]).strip()
 
-    return {
-        "recommendation": recommendation,
-        "top_influencing_factors": features.to_dict(orient='records')
-    }
+    shap_input = features_df.to_string(index=False)
+    feedback_context = ""
+    if customer_feedback and customer_feedback.lower() not in ["none", "nan", ""]:
+        feedback_context = f"\nADDITIONAL ADMIN FEEDBACK (HUMAN CONTEXT): '{customer_feedback}'"
+
+    try:
+        chat_completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are a strict Decision Engine. Your ONLY task is to output ONE specific Category string based on data.
+                    
+                    RULES:
+                    - NO introduction or explanation.
+                    - NO "Based on...".
+                    - If Human Feedback is provided, prioritize it over SHAP values if they conflict.
+                    
+                    CATEGORIES (Output exactly one of these):
+                    1. 'Category 1: Customer Outreach — Priority contact for dissatisfied/sentiment-negative customers.'
+                    2. 'Category 2: Contract Upgrade — Incentivized offers for customers without a two-year contract.'
+                    3. 'Category 3: Service Bundling — Discounted bundles for customers missing key add-ons.'
+                    4. 'Category 4: Family & Household Plan — Multi-line offers for customers with dependents.'
+                    5. 'Category 5: Pricing & Billing Intervention — Plan right-sizing for customers with high charges.'"""
+                },
+                {
+                    "role": "user",
+                    "content": f"DATA INPUTS:\nSHAP VALUES:\n{shap_input}{feedback_context}\n\nDecision:"
+                }
+            ],
+            temperature=0.2
+        )
+
+        ai_suggestion = chat_completion.choices[0].message.content.strip()
+        
+        return {
+            "recommendation": ai_suggestion,
+            "top_influencing_factors": features_df.to_dict(orient='records')
+        }
+    except Exception as e:
+        return {"recommendation": f"AI Error: {str(e)}", "top_influencing_factors": []}
 
 def generate_unique_ids(n):
     ids = set()

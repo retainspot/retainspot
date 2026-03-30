@@ -1,0 +1,241 @@
+/* --- TOÀN BỘ CSS GIAO DIỆN AGENT CHAT GLASSMORPHISM --- */
+
+/* 1. Khung bao bên ngoài */
+.agent-ops-wrapper {
+    display: flex;
+    height: 90vh;
+    background-color: #ffffffb3 !important; 
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid #ffffffcc;
+    color: #1f2937 !important; 
+    margin: 10px;
+    border-radius: 30px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    width: 100%;
+    max-width: 1200px;
+    position: relative;
+    font-family: 'Inter', sans-serif;
+}
+
+/* 2. Sidebar bên trái */
+.ops-sidebar-left { 
+    width: 260px; 
+    background: rgba(255, 255, 255, 0.3) !important; 
+    padding: 30px 20px; 
+    border-right: 1px solid rgba(0, 0, 0, 0.05); 
+}
+
+.ops-title { 
+    font-size: 22px; 
+    font-weight: 700; 
+    margin-bottom: 30px; 
+    color: #111827 !important; 
+}
+
+/* 3. Các mục Agent trong danh sách */
+.agent-nav-item { 
+    display: flex; 
+    align-items: center; 
+    padding: 15px; 
+    border-radius: 16px; 
+    cursor: pointer; 
+    transition: all 0.3s ease;
+    margin-bottom: 10px;
+}
+
+.agent-nav-item:hover { 
+    background: rgba(255, 255, 255, 0.5); 
+}
+
+.agent-nav-item.active { 
+    background: white !important; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.agent-mini-icon { 
+    width: 40px; 
+    height: 40px; 
+    min-width: 40px;
+    border-radius: 12px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    margin-right: 15px; 
+    position: relative; 
+    font-size: 18px;
+}
+
+.nav-name { font-size: 14px; font-weight: 600; color: #111827 !important; margin: 0; }
+.nav-role { font-size: 12px; color: #6b7280; margin: 0; }
+
+/* 4. Khung chat ở giữa */
+.ops-chat-container { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    background: transparent !important; 
+}
+
+.ops-chat-header { 
+    padding: 25px 35px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05); 
+}
+
+.header-agent-info h4 { margin: 0; font-size: 18px; font-weight: 700; color: #111827 !important; }
+.status-dot { color: #10b981; font-size: 12px; display: block; margin-top: 4px; font-weight: 500; }
+
+/* 5. Vùng hiển thị tin nhắn */
+.ops-messages-view { 
+    flex: 1; 
+    padding: 35px; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 25px; 
+}
+
+.ops-bubble-wrapper { display: flex; width: 100%; }
+.ops-bubble-wrapper.user { justify-content: flex-end; }
+.ops-bubble-wrapper.agent { justify-content: flex-start; }
+
+.ops-bubble { 
+    max-width: 70%; 
+    padding: 16px 22px; 
+    border-radius: 20px; 
+    font-size: 15px; 
+    line-height: 1.6;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+/* Màu bóng chat Agent (Bên trái) */
+.ops-bubble-wrapper.agent .ops-bubble { 
+    background: #ffffff !important; 
+    color: #374151 !important; 
+    border-bottom-left-radius: 4px; 
+    font-style: italic;
+}
+
+/* Màu bóng chat User (Bên phải) */
+.ops-bubble-wrapper.user .ops-bubble { 
+    background: #f3f4f6 !important; 
+    color: #111827 !important; 
+    border-bottom-right-radius: 4px; 
+    font-weight: 500;
+}
+
+/* 6. Vùng nhập liệu */
+.ops-input-area { padding: 30px 40px; }
+
+.input-inner { 
+    background: white !important; 
+    border-radius: 100px; 
+    display: flex; 
+    align-items: center; 
+    padding: 10px 25px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.input-inner input { 
+    flex: 1; 
+    background: transparent; 
+    border: none; 
+    padding: 12px; 
+    color: #111827 !important; 
+    outline: none;
+    font-size: 15px;
+}
+
+.ops-send-btn { 
+    background: #f3f4f6 !important; 
+    border: none; 
+    border-radius: 50%; 
+    width: 45px; 
+    height: 45px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    cursor: pointer; 
+    transition: 0.3s;
+}
+
+.ops-send-btn:hover { background: #e5e7eb !important; transform: scale(1.05); }
+
+/* 7. Sidebar bên phải */
+.ops-sidebar-right { 
+    width: 300px; 
+    background: rgba(255, 255, 255, 0.3) !important; 
+    border-left: 1px solid rgba(0, 0, 0, 0.05); 
+    padding: 40px 25px; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.agent-profile-card { text-align: center; margin-bottom: 40px; }
+
+.profile-large-icon { 
+    width: 80px; 
+    height: 80px; 
+    border-radius: 20px; 
+    margin: 0 auto 15px; 
+    font-size: 40px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+}
+
+.ops-sidebar-right h3 { color: #111827 !important; margin: 0; font-size: 20px; font-weight: 700; }
+.profile-role-tag { color: #3b82f6 !important; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+
+/* Các chỉ số stats */
+.agent-stats-grid { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 15px; 
+    width: 100%; 
+    margin-top: 20px;
+}
+
+.stat-card { 
+    background: white !important; 
+    padding: 18px 10px; 
+    border-radius: 20px; 
+    text-align: center; 
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.stat-card span { font-size: 11px; color: #9ca3af; display: block; margin-bottom: 5px; text-transform: uppercase; font-weight: 600; }
+.stat-card h4 { font-size: 16px; margin: 0; color: #111827 !important; font-weight: 700; }
+
+/* 8. Hiệu ứng và Tiện ích */
+.icon-spinner {
+    position: absolute;
+    top: -3px; left: -3px; right: -3px; bottom: -3px;
+    border: 2px solid transparent; 
+    border-top: 2px solid #3b82f6;
+    border-radius: 12px; 
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.agent-nav-item.thinking { animation: pulse-bg 1.5s infinite; opacity: 0.8; }
+.agent-nav-item.working {
+    background-color: #e0f2fe !important;
+    border: 1.5px solid #3b82f6 !important; 
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+    transform: scale(1.02);
+    transition: all 0.3s ease;
+}
+
+@keyframes pulse-bg { 0% { background: transparent; } 50% { background: rgba(59, 130, 246, 0.1); } 100% { background: transparent; } }
+
+.thinking-dots { font-style: italic; color: #6b7280 !important; background: transparent !important; box-shadow: none !important; }

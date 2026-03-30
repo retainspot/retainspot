@@ -5,6 +5,8 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Settings from "./pages/Settings";
 import Messages from "./pages/Messages";
+import AgentChat from "./pages/AgentChat";
+
 import Registration from "./pages/Registration";
 import Home from "./pages/Home";
 import CustomerSupport from "./pages/CustomerSupport";
@@ -190,6 +192,8 @@ function App() {
             satisfactionData={satisfactionData}
           />
         );
+      case "AI Agent": 
+        return <AgentChat user={user} userProfile={userProfile} />;
       case "Customers":
         return <Customers customers={customersData} />;
       case "Messages":

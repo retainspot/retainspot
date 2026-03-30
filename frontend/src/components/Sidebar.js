@@ -4,7 +4,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, handleLogout }) => {
   const menuItems = [
     { label: "Dashboard", icon: "📊" },
     { label: "Leaderboard", icon: "📈" },
-    { label: "Order", icon: "🛒" },
+    { label: "AI Agent", icon: "💬" },
     { label: "Products", icon: "🛍️" },
     { label: "Customers", icon: "👤" },
     { label: "Sales Report", icon: "📉" },
