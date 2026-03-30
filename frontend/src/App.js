@@ -40,7 +40,6 @@ function App() {
 
       if (currentUser) {
         try {
-          // ── Step 1: Try users collection first ──────────
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
 
           if (userDoc.exists()) {
@@ -55,8 +54,6 @@ function App() {
             setUserProfile(profile);
 
           } else {
-            // ── Step 2: Fallback to subAccounts ───────────
-            // Only match by uid field (not email) to avoid picking up wrong docs
             const q = query(
               collection(db, "subAccounts"),
               where("uid", "==", currentUser.uid)

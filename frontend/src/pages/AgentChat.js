@@ -39,39 +39,58 @@ const AgentChat = () => {
             setActiveAgentId(null);
         }
     };
-    const handleSend = () => {
+    const handleSend = async () => {
         if (!input.trim()) return;
 
         const userMsg = { sender: 'user', text: input };
         setMessages(prev => [...prev, userMsg]);
-        const currentInput = input.toLowerCase();
+        const currentInput = input;
         setInput("");
 
         setIsThinking(true);
         setActiveAgentId(null);
 
-        setTimeout(() => {
-            let assignedId = 5;
+        try {
+            const supervisorRes = await fetch("http://localhost:8000/api/supervisor", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: currentInput }),
+            });
 
-            if (currentInput.includes("update") || currentInput.includes("cập nhật")) {
-                assignedId = 1;
-            } else if (currentInput.includes("delete") || currentInput.includes("xóa")) {
-                assignedId = 2;
-            } else if (currentInput.includes("create") || currentInput.includes("tạo")) {
-                assignedId = 3;
-            } else if (currentInput.includes("feedback") || currentInput.includes("viết")) {
-                assignedId = 4;
+            const supervisorJson = JSON.parse(await supervisorRes.json());
+            console.log("Supervisor Output:", supervisorJson);
+
+            setActiveAgentId(supervisorJson.agent_id);
+
+            if (supervisorJson.agent_id === 1) {
+                const workerRes = await fetch("http://localhost:8000/api/worker/update", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(supervisorJson), // Gửi toàn bộ output của Supervisor cho Worker
+                });
+
+                const workerData = await workerRes.json();
+
+                setMessages(prev => [...prev, {
+                    sender: 'agent',
+                    text: `[Supervisor]: ${supervisorJson.supervisor_message}\n\n[Update Agent]: ${workerData.agent_response}`
+                }]);
+            } else {
+                setMessages(prev => [...prev, {
+                    sender: 'agent',
+                    text: supervisorJson.supervisor_message || "I've assigned the task to the respective agent."
+                }]);
             }
 
-            setActiveAgentId(assignedId);
-            setIsThinking(false);
-
-            const selectedAgent = agents.find(a => a.id === assignedId);
+        } catch (error) {
+            console.error("Error:", error);
             setMessages(prev => [...prev, {
                 sender: 'agent',
-                text: `[${selectedAgent.name}]: I have been assigned to handle your request. I am now accessing the database for the "${currentInput}" task.`
+                text: "Error: Could not connect to the AI Server."
             }]);
-        }, 2000);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     return (
@@ -81,19 +100,26 @@ const AgentChat = () => {
                 <div className="agent-list">
                     {agents.map(agent => {
                         const isWorking = activeAgentId === agent.id;
+                        const isProcessing = isThinking && activeAgentId === null;
+
                         return (
                             <div
                                 key={agent.id}
-                                className={`agent-nav-item monitor-mode ${isWorking ? 'working' : ''} ${isThinking ? 'thinking' : ''}`}
+                                className={`agent-nav-item monitor-mode 
+                                ${isWorking ? 'working' : ''} 
+                                ${isProcessing ? 'thinking' : ''}`}
+                                style={{
+                                    backgroundColor: isWorking ? `${agent.color}20` : ''
+                                }}
                             >
                                 <div className="agent-mini-icon" style={{ background: agent.color }}>
                                     {agent.icon}
-                                    {isThinking && <div className="icon-spinner"></div>}
+                                    {isProcessing && <div className="icon-spinner"></div>}
                                 </div>
                                 <div className="agent-nav-info">
                                     <p className="nav-name">{agent.name}</p>
                                     <p className="nav-role">
-                                        {isWorking ? "Processing..." : (isThinking ? "Connecting..." : "Idle")}
+                                        {isWorking ? "Active Now" : (isProcessing ? "Scanning..." : "Idle")}
                                     </p>
                                 </div>
                             </div>

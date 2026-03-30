@@ -16,6 +16,9 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 from groq import Groq
 from dotenv import load_dotenv
 from sklearn.pipeline import Pipeline
+from pydantic import BaseModel
+from fastapi import HTTPException
+
 if root_path not in sys.path:
     sys.path.append(root_path)
 
@@ -23,6 +26,7 @@ app = FastAPI()
 load_dotenv()
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_KEY)
+
 class SafeColumnDropper(BaseEstimator, TransformerMixin):
     def __init__(self, columns):
         self.columns = columns
@@ -365,6 +369,76 @@ async def chat_with_ai(payload: dict):
         return {"content": completion.choices[0].message.content}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+class ChatRequest(BaseModel):
+    query: str
+
+@app.post("/api/supervisor")
+async def supervisor_node(request: ChatRequest):
+    system_prompt = """
+    You are the "Master AI Supervisor" for a Database Management System. 
+    Your role is to orchestrate a team of specialized sub-agents. 
+
+    AGENT REGISTRY:
+    - Agent 1 (Update Agent): Used for modifying existing database records (e.g., updating email, phone, status).
+    - Agent 2 (Delete Agent): Used for removing records or cleanup.
+    - Agent 3 (Create Agent): Used for adding new users or entries.
+    - Agent 4 (Feedback Agent): Used for generating or processing reviews/feedback.
+    - Agent 5 (Summarizer Agent): Used for analyzing behavior or summarizing data.
+
+    TASK:
+    1. Analyze the user's natural language input.
+    2. Identify the correct Agent ID based on the intent.
+    3. Extract entities: 'user_id', 'field_to_update', and 'new_value'.
+    4. Respond ONLY in a valid JSON format.
+
+    JSON SCHEMA:
+    {
+    "agent_id": integer,
+    "intent": "string",
+    "entities": {
+        "target_id": "string or null",
+        "field": "string or null",
+        "value": "any or null"
+    },
+    "confidence_score": float (0.0 to 1.0),
+    "is_confirm_required": boolean,
+    "supervisor_message": "A brief, professional confirmation message in English."}
+        """
+    
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": request.query}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    return response.choices[0].message.content
+
+mock_db = {
+    "007": {"name": "James Bond", "phone": "000000", "email": "bond@mi6.com"}
+}
+
+@app.post("/api/worker/update")
+async def update_agent_node(supervisor_output: dict):
+    entities = supervisor_output.get("entities")
+    target_id = entities.get("target_id")
+    field = entities.get("field")
+    new_value = entities.get("value")
+
+    if target_id not in mock_db:
+        raise HTTPException(status_code=404, detail="User not found in database")
+    db_field = "phone" if "phone" in field.lower() else field
+    
+    mock_db[target_id][db_field] = new_value
+
+    return {
+        "status": "success",
+        "agent_response": f"Successfully updated {field} for User {target_id} to {new_value}.",
+        "db_state": mock_db[target_id]
+    }
     
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
