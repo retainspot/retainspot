@@ -62,7 +62,7 @@ const AgentChat = () => {
             const supervisorJson = JSON.parse(await supervisorRes.json());
             setActiveAgentId(supervisorJson.agent_id);
 
-            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2 || supervisorJson.agent_id === 3) {
+            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2 || supervisorJson.agent_id === 3 || supervisorJson.agent_id === 4) {
                 setPendingAction(supervisorJson);
                 setMessages(prev => [...prev, {
                     sender: 'agent',
@@ -91,8 +91,17 @@ const AgentChat = () => {
             const endpoints = {
                 1: "/api/worker/update",
                 2: "/api/worker/delete",
-                3: "/api/worker/create"
+                3: "/api/worker/create",
+                4: "/api/worker/feedback"
             };
+
+            const agentNames = {
+                1: "Update",
+                2: "Delete",
+                3: "Create",
+                4: "Feedback"
+            };
+
             const endpoint = endpoints[pendingAction.agent_id];
             const workerRes = await fetch(`http://localhost:8000${endpoint}`, {
                 method: "POST",
@@ -103,9 +112,11 @@ const AgentChat = () => {
             const workerData = await workerRes.json();
 
             if (workerRes.ok) {
+                const agentName = agentNames[pendingAction.agent_id] || "Unknown";
+
                 setMessages(prev => [...prev, {
                     sender: 'agent',
-                    text: `✅ [${pendingAction.agent_id === 1 ? 'Update' : 'Delete'} Agent]: ${workerData.agent_response}`
+                    text: `✅ [${agentName} Agent]: ${workerData.agent_response}`
                 }]);
             } else {
                 throw new Error(workerData.detail || "Worker error");

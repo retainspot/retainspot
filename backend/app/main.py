@@ -331,6 +331,7 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.post("/api/chat")
 async def chat_with_ai(payload: dict):
     try:
@@ -383,7 +384,7 @@ async def supervisor_node(request: ChatRequest):
     - Agent 1 (Update Agent): For modifying existing customer records.
     - Agent 2 (Delete Agent): For removing customer records.
     - Agent 3 (Create Agent): For adding new customers.
-    - Agent 4 (Feedback Agent): For processing customer reviews.
+    - Agent 4 (Feedback Agent): Handle customer feedback. STRICT RULE: Put the EXACT feedback message into the 'value' field. Example: "Feedback is good" -> entities: {"target_id": "ID", "value": "Feedback is good"}
     - Agent 5 (Summarizer Agent): For churn analysis and behavior summary.
 
     AVAILABLE DATABASE COLUMNS (Strictly use these names for 'field'):
@@ -396,9 +397,9 @@ async def supervisor_node(request: ChatRequest):
     TASK:
     1. Identify the Agent ID based on user intent.
     2. Extract 'target_id' (usually CustomerID), 'field' (must match the column list above), and 'value'.
-    3. Always set 'is_confirm_required' to true for Agent 1 and Agent 2.
-    4. Respond ONLY in valid JSON format.
-
+    3. Always set 'is_confirm_required' to true for Agent 1, Agent 2, and Agent 4
+    4. Respond ONLY in valid JSON format.For Agent 4, put the feedback text into the 'value' field
+    5. If Agent 4 is selected, extract the customer ID into 'target_id' and the entire feedback message into 'value'.
     JSON SCHEMA:
     {
     "agent_id": integer,
@@ -525,6 +526,41 @@ async def create_agent_node(supervisor_output: dict):
     except Exception as e:
         print(f"Create Agent Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/worker/feedback")
+async def feedback_agent_node(supervisor_output: dict):
+    entities = supervisor_output.get("entities")
+    customer_id = entities.get("target_id")
+    feedback_text = (
+        entities.get("value") or 
+        entities.get("feedback") or 
+        entities.get("content") or 
+        entities.get("text")
+    )
+    print(f"ID: {customer_id}")
+    print(f"Content: {feedback_text}")
+    if not customer_id or not feedback_text:
+        raise HTTPException(status_code=400, detail="AI Supervisor could not find the feedback text in your message.")
+    try:
+        clean_id = customer_id.strip().lower()
+        result = save_customer_feedback(clean_id, {"feedback": feedback_text})
+        if isinstance(result, JSONResponse) and result.status_code == 500:
+            return result
+        sentiment_label = result["sentiment"]["label"]
+        new_score = result["new_churn_score"]
+        return {
+            "status": "success",
+            "agent_response": (
+                f"Feedback recorded for Customer {customer_id}.\n"
+                f"Analysis: Sentiment is {sentiment_label.upper()}.\n"
+                f"System Update: New Churn Score recalculated to {new_score}%."
+            ),
+            "details": result
+        }
+    except Exception as e:
+        print(f"Feedback Agent Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
