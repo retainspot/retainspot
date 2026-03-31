@@ -89,19 +89,26 @@ const AgentChat = () => {
 
         setIsThinking(true);
         try {
-            const workerRes = await fetch("http://localhost:8000/api/worker/update", {
+            const endpoint = pendingAction.agent_id === 1 ? "/api/worker/update" : "/api/worker/delete";
+
+            const workerRes = await fetch(`http://localhost:8000${endpoint}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(pendingAction),
             });
 
             const workerData = await workerRes.json();
-            setMessages(prev => [...prev, {
-                sender: 'agent',
-                text: `✅ [Update Agent]: ${workerData.agent_response}`
-            }]);
+
+            if (workerRes.ok) {
+                setMessages(prev => [...prev, {
+                    sender: 'agent',
+                    text: `✅ [${pendingAction.agent_id === 1 ? 'Update' : 'Delete'} Agent]: ${workerData.agent_response}`
+                }]);
+            } else {
+                throw new Error(workerData.detail || "Worker error");
+            }
         } catch (error) {
-            console.error("Worker error:", error);
+            setMessages(prev => [...prev, { sender: 'agent', text: `❌ Error: ${error.message}` }]);
         } finally {
             setIsThinking(false);
             setPendingAction(null);

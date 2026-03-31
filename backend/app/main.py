@@ -474,5 +474,35 @@ async def update_agent_node(supervisor_output: dict):
         print(f"Database Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/worker/delete")
+async def delete_agent_node(supervisor_output: dict):
+    entities = supervisor_output.get("entities")
+    target_id = entities.get("target_id")
+
+    if not target_id:
+        raise HTTPException(status_code=400, detail="Customer ID is required for deletion.")
+
+    try:
+        with get_engine().connect() as connection:
+            check_query = text('SELECT * FROM customers_info WHERE "CustomerID" = :tid')
+            result = connection.execute(check_query, {"tid": target_id}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Customer ID {target_id} not found.")
+
+            delete_sql = text('DELETE FROM customers_info WHERE "CustomerID" = :tid')
+            connection.execute(delete_sql, {"tid": target_id})
+            connection.commit() 
+
+        return {
+            "status": "success",
+            "agent_response": f"Successfully deleted Customer {target_id} from the database.",
+            "target_id": target_id
+        }
+
+    except Exception as e:
+        print(f"Database Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
