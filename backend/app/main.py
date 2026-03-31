@@ -376,21 +376,28 @@ class ChatRequest(BaseModel):
 @app.post("/api/supervisor")
 async def supervisor_node(request: ChatRequest):
     system_prompt = """
-    You are the "Master AI Supervisor" for a Database Management System. 
-    Your role is to orchestrate a team of specialized sub-agents. 
+    You are the "Master AI Supervisor" for a Customer Database Management System (PostgreSQL).
+    Your role is to orchestrate specialized sub-agents based on user requests.
 
     AGENT REGISTRY:
-    - Agent 1 (Update Agent): Used for modifying existing database records (e.g., updating email, phone, status).
-    - Agent 2 (Delete Agent): Used for removing records or cleanup.
-    - Agent 3 (Create Agent): Used for adding new users or entries.
-    - Agent 4 (Feedback Agent): Used for generating or processing reviews/feedback.
-    - Agent 5 (Summarizer Agent): Used for analyzing behavior or summarizing data.
+    - Agent 1 (Update Agent): For modifying existing customer records.
+    - Agent 2 (Delete Agent): For removing customer records.
+    - Agent 3 (Create Agent): For adding new customers.
+    - Agent 4 (Feedback Agent): For processing customer reviews.
+    - Agent 5 (Summarizer Agent): For churn analysis and behavior summary.
+
+    AVAILABLE DATABASE COLUMNS (Strictly use these names for 'field'):
+    "CustomerID", "Gender","State", "Senior Citizen", "Partner", "Dependents", "Tenure Months", 
+    "Phone Service", "Multiple Lines", "Internet Service", "Online Security", 
+    "Online Backup", "Device Protection", "Tech Support", "Streaming TV", 
+    "Streaming Movies", "Contract", "Paperless Billing", "Payment Method", 
+    "Monthly Charges", "Total Charges", "Churn Score", "Satisfaction Score", "City", "Zip Code"
 
     TASK:
-    1. Analyze the user's natural language input.
-    2. Identify the correct Agent ID based on the intent.
-    3. Extract entities: 'user_id', 'field_to_update', and 'new_value'.
-    4. Respond ONLY in a valid JSON format.
+    1. Identify the Agent ID based on user intent.
+    2. Extract 'target_id' (usually CustomerID), 'field' (must match the column list above), and 'value'.
+    3. Always set 'is_confirm_required' to true for Agent 1 and Agent 2.
+    4. Respond ONLY in valid JSON format.
 
     JSON SCHEMA:
     {
@@ -401,10 +408,12 @@ async def supervisor_node(request: ChatRequest):
         "field": "string or null",
         "value": "any or null"
     },
-    "confidence_score": float (0.0 to 1.0),
+    "confidence_score": float,
     "is_confirm_required": boolean,
-    "supervisor_message": "A brief, professional confirmation message in English."}
-        """
+    "supervisor_message": "Professional confirmation message in English."
+    }
+    Example: "Update city for user 123 to London" -> {"field": "City", "target_id": "123", "value": "London"}
+    """
     
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -417,28 +426,53 @@ async def supervisor_node(request: ChatRequest):
     
     return response.choices[0].message.content
 
-mock_db = {
-    "007": {"name": "James Bond", "phone": "000000", "email": "bond@mi6.com"}
-}
 
 @app.post("/api/worker/update")
 async def update_agent_node(supervisor_output: dict):
     entities = supervisor_output.get("entities")
     target_id = entities.get("target_id")
-    field = entities.get("field")
+    raw_field = entities.get("field").lower()
     new_value = entities.get("value")
 
-    if target_id not in mock_db:
-        raise HTTPException(status_code=404, detail="User not found in database")
-    db_field = "phone" if "phone" in field.lower() else field
-    
-    mock_db[target_id][db_field] = new_value
-
-    return {
-        "status": "success",
-        "agent_response": f"Successfully updated {field} for User {target_id} to {new_value}.",
-        "db_state": mock_db[target_id]
+    column_mapping = {
+        "phone": "Phone Service",
+        "phone service": "Phone Service",
+        "city": "City",
+        "zip code": "Zip Code",
+        "gender": "Gender",
+        "monthly charges": "Monthly Charges",
+        "contract": "Contract",
+        "churn score": "Churn Score",
+        "satisfaction score": "Satisfaction Score",
+        "payment method": "Payment Method",
+        "state": "State"
     }
     
+    db_column = column_mapping.get(raw_field, raw_field.title())
+
+    try:
+        with get_engine().connect() as connection:
+            check_query = text('SELECT * FROM customers_info WHERE "CustomerID" = :tid')
+            result = connection.execute(check_query, {"tid": target_id}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Customer ID {target_id} not found.")
+
+            update_sql = f'UPDATE customers_info SET "{db_column}" = :val WHERE "CustomerID" = :tid'
+            connection.execute(text(update_sql), {"val": new_value, "tid": target_id})
+            
+            connection.commit() 
+
+        return {
+            "status": "success",
+            "agent_response": f"Successfully updated column [{db_column}] to '{new_value}' for Customer {target_id}.",
+            "target_id": target_id,
+            "updated_column": db_column
+        }
+
+    except Exception as e:
+        print(f"Database Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

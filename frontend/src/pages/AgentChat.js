@@ -15,6 +15,7 @@ const AgentChat = () => {
         return savedAgent ? parseInt(savedAgent) : null;
     });
     const [isThinking, setIsThinking] = useState(false);
+    const [pendingAction, setPendingAction] = useState(null);
     const [messages, setMessages] = useState(() => {
         const saved = localStorage.getItem('agent_chat_history');
         return saved ? JSON.parse(saved) : [
@@ -49,6 +50,7 @@ const AgentChat = () => {
 
         setIsThinking(true);
         setActiveAgentId(null);
+        setPendingAction(null);
 
         try {
             const supervisorRes = await fetch("http://localhost:8000/api/supervisor", {
@@ -58,38 +60,51 @@ const AgentChat = () => {
             });
 
             const supervisorJson = JSON.parse(await supervisorRes.json());
-            console.log("Supervisor Output:", supervisorJson);
-
             setActiveAgentId(supervisorJson.agent_id);
 
-            if (supervisorJson.agent_id === 1) {
-                const workerRes = await fetch("http://localhost:8000/api/worker/update", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(supervisorJson), // Gửi toàn bộ output của Supervisor cho Worker
-                });
-
-                const workerData = await workerRes.json();
+            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2) {
+                setPendingAction(supervisorJson);
 
                 setMessages(prev => [...prev, {
                     sender: 'agent',
-                    text: `[Supervisor]: ${supervisorJson.supervisor_message}\n\n[Update Agent]: ${workerData.agent_response}`
+                    text: `[Supervisor]: ${supervisorJson.supervisor_message}\n\nDo you want to proceed with this action?`,
+                    isConfirm: true
                 }]);
             } else {
-                setMessages(prev => [...prev, {
-                    sender: 'agent',
-                    text: supervisorJson.supervisor_message || "I've assigned the task to the respective agent."
-                }]);
+                setMessages(prev => [...prev, { sender: 'agent', text: supervisorJson.supervisor_message }]);
             }
-
         } catch (error) {
             console.error("Error:", error);
-            setMessages(prev => [...prev, {
-                sender: 'agent',
-                text: "Error: Could not connect to the AI Server."
-            }]);
         } finally {
             setIsThinking(false);
+        }
+    };
+    const handleConfirmAction = async (isApproved) => {
+        if (!isApproved) {
+            setMessages(prev => [...prev, { sender: 'agent', text: "❌ Action cancelled by Admin." }]);
+            setPendingAction(null);
+            setActiveAgentId(null);
+            return;
+        }
+
+        setIsThinking(true);
+        try {
+            const workerRes = await fetch("http://localhost:8000/api/worker/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(pendingAction),
+            });
+
+            const workerData = await workerRes.json();
+            setMessages(prev => [...prev, {
+                sender: 'agent',
+                text: `✅ [Update Agent]: ${workerData.agent_response}`
+            }]);
+        } catch (error) {
+            console.error("Worker error:", error);
+        } finally {
+            setIsThinking(false);
+            setPendingAction(null);
         }
     };
 
@@ -143,14 +158,21 @@ const AgentChat = () => {
                         <div key={idx} className={`ops-bubble-wrapper ${msg.sender}`}>
                             <div className="ops-bubble">
                                 {msg.text}
+
+                                {msg.isConfirm && idx === messages.length - 1 && (
+                                    <div className="confirm-container">
+                                        <button className="confirm-btn approve" onClick={() => handleConfirmAction(true)}>
+                                            Confirm execution
+                                        </button>
+                                        <button className="confirm-btn cancel" onClick={() => handleConfirmAction(false)}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
-                    {isThinking && (
-                        <div className="ops-bubble-wrapper agent">
-                            <div className="ops-bubble thinking-dots">Supervisor is thinking...</div>
-                        </div>
-                    )}
+                    {isThinking && <div className="ops-bubble agent thinking-dots">AI is processing...</div>}
                 </div>
 
                 <div className="ops-input-area">
