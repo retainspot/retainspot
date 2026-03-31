@@ -62,9 +62,8 @@ const AgentChat = () => {
             const supervisorJson = JSON.parse(await supervisorRes.json());
             setActiveAgentId(supervisorJson.agent_id);
 
-            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2) {
+            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2 || supervisorJson.agent_id === 3) {
                 setPendingAction(supervisorJson);
-
                 setMessages(prev => [...prev, {
                     sender: 'agent',
                     text: `[Supervisor]: ${supervisorJson.supervisor_message}\n\nDo you want to proceed with this action?`,
@@ -89,8 +88,12 @@ const AgentChat = () => {
 
         setIsThinking(true);
         try {
-            const endpoint = pendingAction.agent_id === 1 ? "/api/worker/update" : "/api/worker/delete";
-
+            const endpoints = {
+                1: "/api/worker/update",
+                2: "/api/worker/delete",
+                3: "/api/worker/create"
+            };
+            const endpoint = endpoints[pendingAction.agent_id];
             const workerRes = await fetch(`http://localhost:8000${endpoint}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

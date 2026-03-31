@@ -504,5 +504,27 @@ async def delete_agent_node(supervisor_output: dict):
         print(f"Database Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/worker/create")
+async def create_agent_node(supervisor_output: dict):
+    try:
+        new_customer_data = generate_customer()
+        
+        if isinstance(new_customer_data, JSONResponse) and new_customer_data.status_code == 500:
+            return new_customer_data
+
+        customer_id = new_customer_data.get('CustomerID')
+        gender = new_customer_data.get('Gender')
+        city = new_customer_data.get('City')
+
+        return {
+            "status": "success",
+            "agent_response": f"Successfully synthesized a new customer profile. ID: {customer_id}. Data has been appended to PostgreSQL.",
+            "customer_details": new_customer_data
+        }
+
+    except Exception as e:
+        print(f"Create Agent Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
