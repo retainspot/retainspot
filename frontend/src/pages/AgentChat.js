@@ -62,7 +62,7 @@ const AgentChat = () => {
             const supervisorJson = JSON.parse(await supervisorRes.json());
             setActiveAgentId(supervisorJson.agent_id);
 
-            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2 || supervisorJson.agent_id === 3 || supervisorJson.agent_id === 4) {
+            if (supervisorJson.agent_id === 1 || supervisorJson.agent_id === 2 || supervisorJson.agent_id === 3 || supervisorJson.agent_id === 4 || supervisorJson.agent_id === 5) {
                 setPendingAction(supervisorJson);
                 setMessages(prev => [...prev, {
                     sender: 'agent',
@@ -92,14 +92,16 @@ const AgentChat = () => {
                 1: "/api/worker/update",
                 2: "/api/worker/delete",
                 3: "/api/worker/create",
-                4: "/api/worker/feedback"
+                4: "/api/worker/feedback",
+                5: "/api/worker/summarize"
             };
 
             const agentNames = {
                 1: "Update",
                 2: "Delete",
                 3: "Create",
-                4: "Feedback"
+                4: "Feedback",
+                5: "Summarizer"
             };
 
             const endpoint = endpoints[pendingAction.agent_id];

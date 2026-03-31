@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from sklearn.pipeline import Pipeline
 from pydantic import BaseModel
 from fastapi import HTTPException
+import re
 
 if root_path not in sys.path:
     sys.path.append(root_path)
@@ -491,20 +492,25 @@ async def delete_agent_node(supervisor_output: dict):
             if not result:
                 raise HTTPException(status_code=404, detail=f"Customer ID {target_id} not found.")
 
-            delete_sql = text('DELETE FROM customers_info WHERE "CustomerID" = :tid')
-            connection.execute(delete_sql, {"tid": target_id})
+            delete_fb_sql = text('DELETE FROM customer_feedback WHERE UPPER("customerID") = UPPER(:tid)')
+            connection.execute(delete_fb_sql, {"tid": target_id})
+
+            delete_info_sql = text('DELETE FROM customers_info WHERE "CustomerID" = :tid')
+            connection.execute(delete_info_sql, {"tid": target_id})
             connection.commit() 
 
         return {
             "status": "success",
-            "agent_response": f"Successfully deleted Customer {target_id} from the database.",
+            "agent_response": f"Successfully removed Customer {target_id} and all associated feedback records from the database.",
             "target_id": target_id
         }
 
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as e:
         print(f"Database Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 @app.post("/api/worker/create")
 async def create_agent_node(supervisor_output: dict):
     try:
@@ -560,7 +566,55 @@ async def feedback_agent_node(supervisor_output: dict):
     except Exception as e:
         print(f"Feedback Agent Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+ 
+@app.post("/api/worker/summarize")
+async def summarizer_agent_node(supervisor_output: dict):
+    entities = supervisor_output.get("entities", {})
+    target_id = entities.get("target_id")
 
+    try:
+        with get_engine().connect() as connection:
+            query = text("""
+                SELECT i.*, f."CustomerFeedback", f."sentiment_label_roberta"
+                FROM customers_info i
+                LEFT JOIN customer_feedback f ON UPPER(i."CustomerID") = UPPER(f."customerID")
+                WHERE UPPER(i."CustomerID") = UPPER(:tid)
+            """)
+            res = connection.execute(query, {"tid": target_id}).fetchone()
 
+            if not res:
+                raise HTTPException(status_code=404, detail="Customer not found.")
+
+            data = dict(res._mapping)
+            
+            has_actual_fb = data.get("CustomerFeedback") and data.get("CustomerFeedback").strip() != ""
+            fb_status = data.get("CustomerFeedback") if has_actual_fb else "No feedback submitted yet."
+            sentiment = data.get("sentiment_label_roberta") if has_actual_fb else "N/A"
+
+            data_context = (
+                f"Customer {target_id} is in {data.get('City')}, using {data.get('Contract')} contract. "
+                f"Monthly bill is ${data.get('Monthly Charges')}. Churn Risk Score: {data.get('Churn Score')}%. "
+                f"Feedback Status: {fb_status}. Sentiment: {sentiment}."
+            )
+
+            if has_actual_fb:
+                prompt = f"Summarize this customer's profile and their specific feedback: {data_context}"
+            else:
+                prompt = f"This customer has no feedback. Summarize their risk based ONLY on their billing and contract: {data_context}"
+
+            llm_res = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "system", "content": "You are a senior CRM analyst."},
+                          {"role": "user", "content": prompt}]
+            )
+            clean_report = re.sub(r'\*\*', '', llm_res.choices[0].message.content.strip())
+            return {
+                "status": "success",
+                "agent_response": f"\n{clean_report}",
+                "has_feedback": has_actual_fb
+            }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
