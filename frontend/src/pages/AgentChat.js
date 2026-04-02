@@ -47,6 +47,10 @@ const AgentChat = () => {
         setMessages(prev => [...prev, userMsg]);
         const currentInput = input;
         setInput("");
+        const chatContext = messages.slice(-5).map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+        }));
 
         setIsThinking(true);
         setActiveAgentId(null);
@@ -56,7 +60,7 @@ const AgentChat = () => {
             const supervisorRes = await fetch("http://localhost:8000/api/supervisor", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query: currentInput }),
+                body: JSON.stringify({ query: currentInput,history: chatContext }),
             });
 
             const supervisorJson = JSON.parse(await supervisorRes.json());

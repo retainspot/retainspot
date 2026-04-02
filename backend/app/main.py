@@ -19,6 +19,8 @@ from sklearn.pipeline import Pipeline
 from pydantic import BaseModel
 from fastapi import HTTPException
 import re
+from typing import List, Optional, Any
+
 
 if root_path not in sys.path:
     sys.path.append(root_path)
@@ -49,6 +51,13 @@ class DTypeCaster(BaseEstimator, TransformerMixin):
                 X[col] = X[col].astype(dtype)
         return X
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    query: str
+    history: Optional[List[ChatMessage]] = []
 
 CHURN_PIPELINE = joblib.load("ml/models/churn_pipeline.pkl")
 SDV_SYNTHESIZER = joblib.load("ml/models/gc_synthesizer.pkl")
@@ -372,12 +381,13 @@ async def chat_with_ai(payload: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-class ChatRequest(BaseModel):
-    query: str
 
 @app.post("/api/supervisor")
 async def supervisor_node(request: ChatRequest):
     actual_fields = get_actual_columns("customers_info")
+    user_message = request.query
+    chat_history_data = request.history or []
+    formatted_history = [{"role": m.role, "content": m.content} for m in chat_history_data]
     system_prompt = f"""
     You are the "Master AI Supervisor" for a Customer Database Management System (PostgreSQL).
     Your role is to orchestrate specialized sub-agents based on user requests.
@@ -396,7 +406,11 @@ async def supervisor_node(request: ChatRequest):
     1. Agent 1 (Update): 'field' MUST match EXACTLY a column name from the list above (case-sensitive). If user says 'referrals', use 'Number of Referrals'.
     2. Agent 4 (Feedback): Put the FULL feedback text into 'value' and the customer ID into 'target_id'.
     3. Agent 5 (Summarize): Use this if user wants a summary, analysis, or report on a specific customer ID.
-
+    
+    MEMORY & CONTEXT RULES:
+    1. Look at the 'CHAT HISTORY' below to find the most recent Customer ID if the user doesn't provide one in the current message.
+    2. If a new ID is mentioned, switch to that new ID for all subsequent actions.
+    
     TASK:
     1. Identify the Agent ID based on user intent.
     2. Extract 'target_id' (CustomerID), 'field' (must match the column list above), and 'value' (the data to update or the feedback text).
@@ -425,12 +439,14 @@ async def supervisor_node(request: ChatRequest):
         model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": request.query}
+            *formatted_history,
+            {"role": "user", "content": user_message}
         ],
         response_format={"type": "json_object"}
     )
     
     return response.choices[0].message.content
+
 def get_actual_columns(table_name: str):
     query = text(f"""
         SELECT column_name 
@@ -448,6 +464,8 @@ async def update_agent_node(supervisor_output: dict):
     target_id = entities.get("target_id")
     db_column = entities.get("field") 
     new_value = entities.get("value")
+    
+    print(f"DEBUG UPDATE: ID={target_id}, Field={db_column}, Val={new_value}")
 
     if not target_id or not db_column:
         raise HTTPException(status_code=400, detail="Missing Target ID or Field name.")
