@@ -377,7 +377,8 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/supervisor")
 async def supervisor_node(request: ChatRequest):
-    system_prompt = """
+    actual_fields = get_actual_columns("customers_info")
+    system_prompt = f"""
     You are the "Master AI Supervisor" for a Customer Database Management System (PostgreSQL).
     Your role is to orchestrate specialized sub-agents based on user requests.
 
@@ -385,36 +386,39 @@ async def supervisor_node(request: ChatRequest):
     - Agent 1 (Update Agent): For modifying existing customer records.
     - Agent 2 (Delete Agent): For removing customer records.
     - Agent 3 (Create Agent): For adding new customers.
-    - Agent 4 (Feedback Agent): Handle customer feedback. STRICT RULE: Put the EXACT feedback message into the 'value' field. Example: "Feedback is good" -> entities: {"target_id": "ID", "value": "Feedback is good"}
-    - Agent 5 (Summarizer Agent): For churn analysis and behavior summary.
+    - Agent 4 (Feedback Agent): For recording customer feedback.
+    - Agent 5 (Summarizer Agent): For churn analysis, reports, and behavior summary.
 
-    AVAILABLE DATABASE COLUMNS (Strictly use these names for 'field'):
-    "CustomerID", "Gender","State", "Senior Citizen", "Partner", "Dependents", "Tenure Months", 
-    "Phone Service", "Multiple Lines", "Internet Service", "Online Security", 
-    "Online Backup", "Device Protection", "Tech Support", "Streaming TV", 
-    "Streaming Movies", "Contract", "Paperless Billing", "Payment Method", 
-    "Monthly Charges", "Total Charges", "Churn Score", "Satisfaction Score", "City", "Zip Code"
+    AVAILABLE COLUMNS IN DATABASE:
+    {actual_fields}
+
+    AGENT-SPECIFIC RULES:
+    1. Agent 1 (Update): 'field' MUST match EXACTLY a column name from the list above (case-sensitive). If user says 'referrals', use 'Number of Referrals'.
+    2. Agent 4 (Feedback): Put the FULL feedback text into 'value' and the customer ID into 'target_id'.
+    3. Agent 5 (Summarize): Use this if user wants a summary, analysis, or report on a specific customer ID.
 
     TASK:
     1. Identify the Agent ID based on user intent.
-    2. Extract 'target_id' (usually CustomerID), 'field' (must match the column list above), and 'value'.
-    3. Always set 'is_confirm_required' to true for Agent 1, Agent 2, and Agent 4
-    4. Respond ONLY in valid JSON format.For Agent 4, put the feedback text into the 'value' field
-    5. If Agent 4 is selected, extract the customer ID into 'target_id' and the entire feedback message into 'value'.
+    2. Extract 'target_id' (CustomerID), 'field' (must match the column list above), and 'value' (the data to update or the feedback text).
+    3. Set 'is_confirm_required' to TRUE for Agents 1, 2, 3, 4. Set to FALSE for Agent 5.
+    4. Respond ONLY in valid JSON format.
+
     JSON SCHEMA:
-    {
+    {{
     "agent_id": integer,
     "intent": "string",
-    "entities": {
+    "entities": {{
         "target_id": "string or null",
         "field": "string or null",
         "value": "any or null"
-    },
+    }},
     "confidence_score": float,
     "is_confirm_required": boolean,
     "supervisor_message": "Professional confirmation message in English."
-    }
-    Example: "Update city for user 123 to London" -> {"field": "City", "target_id": "123", "value": "London"}
+    }}
+
+    Example Update: "Update city for user 123 to London" -> {{"agent_id": 1, "entities": {{"field": "City", "target_id": "123", "value": "London"}}, "is_confirm_required": true}}
+    Example Summarize: "Tell me about customer 555" -> {{"agent_id": 5, "entities": {{"target_id": "555", "field": null, "value": null}}, "is_confirm_required": false}}
     """
     
     response = client.chat.completions.create(
@@ -427,30 +431,26 @@ async def supervisor_node(request: ChatRequest):
     )
     
     return response.choices[0].message.content
-
+def get_actual_columns(table_name: str):
+    query = text(f"""
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = '{table_name}'
+    """)
+    with get_engine().connect() as conn:
+        result = conn.execute(query).fetchall()
+        # Trả về list: ['CustomerID', 'Gender', 'Number of Referrals', ...]
+        return [col[0] for col in result]
 
 @app.post("/api/worker/update")
 async def update_agent_node(supervisor_output: dict):
     entities = supervisor_output.get("entities")
     target_id = entities.get("target_id")
-    raw_field = entities.get("field").lower()
+    db_column = entities.get("field") 
     new_value = entities.get("value")
 
-    column_mapping = {
-        "phone": "Phone Service",
-        "phone service": "Phone Service",
-        "city": "City",
-        "zip code": "Zip Code",
-        "gender": "Gender",
-        "monthly charges": "Monthly Charges",
-        "contract": "Contract",
-        "churn score": "Churn Score",
-        "satisfaction score": "Satisfaction Score",
-        "payment method": "Payment Method",
-        "state": "State"
-    }
-    
-    db_column = column_mapping.get(raw_field, raw_field.title())
+    if not target_id or not db_column:
+        raise HTTPException(status_code=400, detail="Missing Target ID or Field name.")
 
     try:
         with get_engine().connect() as connection:
@@ -459,23 +459,18 @@ async def update_agent_node(supervisor_output: dict):
 
             if not result:
                 raise HTTPException(status_code=404, detail=f"Customer ID {target_id} not found.")
-
             update_sql = f'UPDATE customers_info SET "{db_column}" = :val WHERE "CustomerID" = :tid'
             connection.execute(text(update_sql), {"val": new_value, "tid": target_id})
-            
             connection.commit() 
-
         return {
             "status": "success",
-            "agent_response": f"Successfully updated column [{db_column}] to '{new_value}' for Customer {target_id}.",
-            "target_id": target_id,
-            "updated_column": db_column
+            "agent_response": f"Successfully updated [{db_column}] to '{new_value}' for Customer {target_id}.",
+            "target_id": target_id
         }
 
     except Exception as e:
         print(f"Database Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/api/worker/delete")
 async def delete_agent_node(supervisor_output: dict):
     entities = supervisor_output.get("entities")

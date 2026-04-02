@@ -320,4 +320,4 @@
     color: #6b7280;
 }
 
-.confirm-btn.cancel:hover { background: #e5e7eb; color: #111827; }
+.confirm-btn.cancel:hover { background: #e5e7eb; color: #111827; transform: translateY(-2px); }
