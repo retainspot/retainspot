@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './ChatWidget.css';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const ChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -25,7 +26,7 @@ const ChatWidget = () => {
         setIsTyping(true);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/chat', {
+            const response = await axios.post(`${API_URL}/api/chat`, {
                 messages: [...messages, userMessage]
             });
 

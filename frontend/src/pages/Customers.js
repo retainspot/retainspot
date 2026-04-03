@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import '../App.css';
 import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const Customers = ({ customers: initialCustomers = [] }) => {
   const [customersData, setCustomersData] = useState(initialCustomers);
@@ -16,7 +17,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
     setRecommendationData(null)
     setLoadingRec(true);
     try {
-      const response = await axios.get(`http://localhost:8000/api/customers/${customerId}/recommendation`);
+      const response = await axios.get(`${API_URL}/api/customers/${customerId}/recommendation`);
       setRecommendationData(response.data);
     } catch (error) {
       console.error("Error fetching recommendation:", error);
@@ -109,7 +110,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
 
   const handleSaveFeedback = async (customerId, feedback) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/customers/${customerId}/feedback`, {
+      const response = await fetch(`${API_URL}/api/customers/${customerId}/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feedback }),

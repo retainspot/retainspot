@@ -25,6 +25,7 @@ import { app } from "./FirebaseAuth";
 import Papa from "papaparse";
 
 const db = getFirestore(app);
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 function App() {
   const [user, setUser]                     = useState(null);
@@ -134,7 +135,7 @@ function App() {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch("http://localhost:8000/api/customers");
+        const response = await fetch(`${API_URL}/api/customers`);
 
         if (!response.ok) {
           throw new Error("Network response was not ok");

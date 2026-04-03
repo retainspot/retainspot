@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AgentChat.css';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const agents = [
     { id: 1, name: "Update Agent", role: "Database Modifier", status: "Active", icon: "🔧", color: "#4da3ff" },
@@ -57,7 +58,7 @@ const AgentChat = () => {
         setPendingAction(null);
 
         try {
-            const supervisorRes = await fetch("http://localhost:8000/api/supervisor", {
+            const supervisorRes = await fetch(`${API_URL}/api/supervisor`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ query: currentInput,history: chatContext }),
@@ -109,7 +110,7 @@ const AgentChat = () => {
             };
 
             const endpoint = endpoints[pendingAction.agent_id];
-            const workerRes = await fetch(`http://localhost:8000${endpoint}`, {
+            const workerRes = await fetch(`${API_URL}${endpoint}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(pendingAction),
