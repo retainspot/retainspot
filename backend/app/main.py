@@ -177,36 +177,40 @@ def get_ai_recommendation(customer_id: str):
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a strict Decision Engine. Your ONLY task is to output ONE specific Category string based on data.
+                    "content": """You are a Decision Engine. Output your decision in JSON format.
                     
-                    RULES:
-                    - NO introduction or explanation.
-                    - NO "Based on...".
-                    - If Human Feedback is provided, prioritize it over SHAP values if they conflict.
-                    
-                    CATEGORIES (Output exactly one of these):
-                    1. 'Category 1: Customer Outreach — Priority contact for dissatisfied/sentiment-negative customers.'
-                    2. 'Category 2: Contract Upgrade — Incentivized offers for customers without a two-year contract.'
-                    3. 'Category 3: Service Bundling — Discounted bundles for customers missing key add-ons.'
+                    CATEGORIES:
+                    1. 'Category 1: Customer Outreach — Priority contact for dissatisfied customers.'
+                    2. 'Category 2: Contract Upgrade — Incentivized offers for non-two-year contracts.'
+                    3. 'Category 3: Service Bundling — Discounted bundles for missing add-ons.'
                     4. 'Category 4: Family & Household Plan — Multi-line offers for customers with dependents.'
-                    5. 'Category 5: Pricing & Billing Intervention — Plan right-sizing for customers with high charges.'"""
+                    5. 'Category 5: Pricing & Billing Intervention — Plan right-sizing for high charges.'
+
+                    STRICT JSON FORMAT:
+                    {
+                        "category": "The full category string selected above",
+                        "reason": "A brief 1-sentence explanation why this was chosen based on SHAP or feedback."
+                    }"""
                 },
                 {
                     "role": "user",
                     "content": f"DATA INPUTS:\nSHAP VALUES:\n{shap_input}{feedback_context}\n\nDecision:"
                 }
             ],
+            response_format={"type": "json_object"},
             temperature=0.2
         )
 
-        ai_suggestion = chat_completion.choices[0].message.content.strip()
+        import json
+        ai_response = json.loads(chat_completion.choices[0].message.content)
         
         return {
-            "recommendation": ai_suggestion,
+            "recommendation": ai_response.get("category"),
+            "reason": ai_response.get("reason"),
             "top_influencing_factors": features_df.to_dict(orient='records')
         }
     except Exception as e:
-        return {"recommendation": f"AI Error: {str(e)}", "top_influencing_factors": []}
+        return {"recommendation": "AI Error", "reason": str(e), "top_influencing_factors": []}
 
 def generate_unique_ids(n):
     ids = set()

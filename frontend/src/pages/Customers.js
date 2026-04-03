@@ -286,11 +286,11 @@ const Customers = ({ customers: initialCustomers = [] }) => {
                     </div>
                     <label>Reason:</label>
                     <div className="feedback-recommendation recommendation-box">
-                      {/* {loadingRec ? (
-                        "AI is analyzing..."
+                      {loadingRec ? (
+                        "AI is evaluating factors..."
                       ) : (
-                        recommendationData?.recommendation || "No recommendation available."
-                      )} */}
+                        recommendationData?.reason || "No specific reason provided."
+                      )}
                     </div>
                     <div className="modal-feedback-footer">
                       <button className="cancel-btn" onClick={closeModal}>Cancel</button>
