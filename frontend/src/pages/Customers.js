@@ -277,19 +277,30 @@ const Customers = ({ customers: initialCustomers = [] }) => {
                 {activeTab === 'recommendation' && (
                   <div className="feedback-section">
                     <label>Suggestion:</label>
-                    <div className="feedback-textarea recommendation-box">
+                    <div className="feedback-recommendation recommendation-box">
                       {loadingRec ? (
                         "AI is analyzing..."
                       ) : (
                         recommendationData?.recommendation || "No recommendation available."
                       )}
                     </div>
+                    <label>Reason:</label>
+                    <div className="feedback-recommendation recommendation-box">
+                      {/* {loadingRec ? (
+                        "AI is analyzing..."
+                      ) : (
+                        recommendationData?.recommendation || "No recommendation available."
+                      )} */}
+                    </div>
+                    <div className="modal-feedback-footer">
+                      <button className="cancel-btn" onClick={closeModal}>Cancel</button>
+                    </div>
                   </div>
                 )}
               </div>
 
               <div className="modal-footer">
-                <button className="cancel-btn" onClick={closeModal}>Cancel</button>
+                {/* <button className="cancel-btn" onClick={closeModal}>Cancel</button> */}
                 {activeTab === 'feedback' && (
                   <button
                     className="save-btn"
