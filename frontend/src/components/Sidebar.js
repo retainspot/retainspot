@@ -1,6 +1,46 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../FirebaseAuth"; // adjust path
 
 const Sidebar = ({ activeTab, setActiveTab, user, handleLogout }) => {
+  // ✅ Hooks must be inside the component
+  const [role, setRole] = useState("Loading...");
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+
+      try {
+        // ✅ Fetch user directly by document ID (Auth UID)
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const docData = userDocSnap.data();
+          setRole(docData.role); // role from users collection
+          return;
+        }
+
+        // ✅ If not in users, check subAccounts by uid
+        const subRef = collection(db, "subAccounts");
+        const q2 = query(subRef, where("uid", "==", user.uid));
+        const subSnap = await getDocs(q2);
+
+        if (!subSnap.empty) {
+          const docData = subSnap.docs[0].data();
+          setRole(docData.role);
+        } else {
+          setRole("No Role");
+        }
+      } catch (error) {
+        console.error("Error fetching role:", error);
+        setRole("Error");
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
+
   const menuItems = [
     { label: "Dashboard", icon: "📊" },
     { label: "Leaderboard", icon: "📈" },
@@ -35,18 +75,14 @@ const Sidebar = ({ activeTab, setActiveTab, user, handleLogout }) => {
       </nav>
 
       <div className="sidebar-profile">
-        <img
-          src="https://scontent.fyyz1-1.fna.fbcdn.net/v/t39.30808-6/487108477_3980465852230905_2761675982364958433_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=a5f93a&_nc_ohc=cel9fmFLh9kQ7kNvwFYGdaB&_nc_oc=AdnOBguIRKMLCjJI4VXMm3u2HQISvJsLUA3vVSGP2he6JH6txV_mhCEwv9zAWu8vmqHWpnyb0XXYgS9j4kga8EbT&_nc_zt=23&_nc_ht=scontent.fyyz1-1.fna&_nc_gid=kQt5ROmR7Wnfk1tET4EJqA&oh=00_AfvVLyKevICxLx12_DTfThhUR4NucQS_8AlHhUqO1gvKsA&oe=698F0CC2"
-          alt="avatar"
-        />
         <div className="profile-info">
           <p className="profile-name">
             {user ? user.email.split("@")[0] : "Guest"}
           </p>
-          <p className="profile-role">Admin</p>
+          <p className="profile-role">{role}</p>
         </div>
-        <span className="profile-arrow">⌵</span>
       </div>
+
       <div className="logout-section">
         <button onClick={handleLogout} className="logout-btn">
           Logout
