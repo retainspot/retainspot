@@ -9,8 +9,8 @@ router.get("/", async (req, res) => {
       SELECT 
         CASE
           WHEN "Churn Score" >= 80 THEN 'Immediate Action'
-          WHEN "Churn Score" >= 60 THEN 'At Risk'
-          WHEN "Churn Score" >= 40 THEN 'Moderate'
+          WHEN "Churn Score" >= 60 THEN 'Moderate'
+          WHEN "Churn Score" >= 40 THEN 'At Risk'
           ELSE 'Good'
         END AS segment,
         COUNT(*)::int as count

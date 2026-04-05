@@ -1261,6 +1261,7 @@ const Dashboard = () => {
   const [selectedChart, setSelectedChart] = useState(null);
   const [aiResponse, setAiResponse] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [showAI, setShowAI] = useState(false);
 
   useEffect(() => {
     fetch("http://localhost:5000/dashboard")
@@ -1300,13 +1301,6 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div>
           <h1>Customer Intelligence</h1>
-          <p>
-            Click charts for comprehensive AI analysis • Powered by D3.js &
-            Gemini 3 Flash
-          </p>
-        </div>
-        <div className="badge-purple">
-          <span>Gemini 3 Flash AI Active</span>
         </div>
       </div>
 
@@ -1575,17 +1569,32 @@ const Dashboard = () => {
               <div className="modal-ai-section">
                 <div className="modal-ai-icon"></div>
                 <div className="modal-ai-text">
-                  <h4>AI-Powered Insights (Gemini 3 Flash)</h4>
-                  {isLoadingAI ? (
-                    <div className="ai-loading-modal">
-                      <span>Analyzing patterns and generating insights</span>
-                      <div className="dot-pulse">...</div>
+                  <div className="ai-dropdown">
+                    <div
+                      className="ai-dropdown-header"
+                      onClick={() => setShowAI(!showAI)}
+                    >
+                      <h4>AI-Powered Insights (Gemini 3 Flash)</h4>
+                      <span className={`arrow ${showAI ? "open" : ""}`}>⌄</span>
                     </div>
-                  ) : (
-                    <p className="ai-response-text">
-                      {aiResponse || "Generating comprehensive analysis..."}
-                    </p>
-                  )}
+
+                    <div
+                      className={`ai-dropdown-content ${showAI ? "open" : ""}`}
+                    >
+                      {isLoadingAI ? (
+                        <div className="ai-loading-modal">
+                          <span>
+                            Analyzing patterns and generating insights
+                          </span>
+                          <div className="dot-pulse"></div>
+                        </div>
+                      ) : (
+                        <p className="ai-response-text">
+                          {aiResponse || "Generating comprehensive analysis..."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

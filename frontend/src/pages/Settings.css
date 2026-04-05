@@ -3,11 +3,12 @@
 ─────────────────────────────────────────────── */
 
 .settings-root {
-  padding: 32px 36px;
+  padding-top: 30px;
   max-width: 1000px;
   display: flex;
   flex-direction: column;
   gap: 28px;
+  margin: 0 auto; /* ✅ THIS is the key */
 }
 
 /* ── HEADER ── */
