@@ -20,15 +20,26 @@ from pydantic import BaseModel
 from fastapi import HTTPException
 import re
 from typing import List, Optional, Any
-
-
+from pinecone import Pinecone
+from llama_index.core import VectorStoreIndex,Settings
+from llama_index.vector_stores.pinecone import PineconeVectorStore
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 if root_path not in sys.path:
     sys.path.append(root_path)
-
 app = FastAPI()
 load_dotenv()
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_KEY)
+Settings.llm = None 
+Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+pinecone_index = pc.Index("retainspot-knowledge")
+vector_store = PineconeVectorStore(pinecone_index=pinecone_index)
+index = VectorStoreIndex.from_vector_store(
+    vector_store=vector_store, 
+    embed_model=Settings.embed_model
+)
+query_engine = index.as_query_engine(streaming=False, similarity_top_k=2)
 
 class SafeColumnDropper(BaseEstimator, TransformerMixin):
     def __init__(self, columns):
@@ -350,35 +361,30 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
 async def chat_with_ai(payload: dict):
     try:
         messages = payload.get("messages", [])
-        system_instructions = {
-            'role':'system',
-            'content':
-        """
+        user_query = messages[-1]['content']
+        response = query_engine.query(user_query)
+        context = response.source_nodes[0].text if response.source_nodes else "No relevant info found."
+        system_content = f"""
         You are 'RetainSpot AI'. Your goal is to provide information in a BEAUTIFUL and READABLE way.
+        STRICT RULE: Respond ONLY based on the context provided below. 
+        If the information is not in the context, politely say you don't have that information.
 
         IMPORTANT UI RULES:
-        1. USE EMOJIS to start each point.
-        2. ALWAYS add a blank line between every single bullet point.
-        3. DO NOT Use **Bold** for technical terms.
-        4. Keep each bullet point short and punchy.
+        1. NEVER use the asterisk symbol (*) or double asterisks (**) anywhere.
+        2. To make text BOLD, you must ONLY use HTML tags: <b>text</b>.
+        3. Use the bullet symbol '•' for list items.
+        4. ONLY bold the main Feature Names (e.g., <b>Churn Prediction</b>).
+        5. ALWAYS add a blank line between every single bullet point.
+        6. Respond in the language used by the user.
 
-        YOUR KNOWLEDGE BASE (FAQ):
-        - Churn Prediction: Real-time risk scoring (0-100%) using a Random Forest model.
-        - Sentiment Analysis: Understanding customer emotions via the RoBERTa model.
-        - Data Simulation: Generating realistic samples with SDV (Synthetic Data Vault).
-        - AI Recommendations: Personalized retention suggestions based on customer behavior.
-        - Tech Stack: Built with React, FastAPI, PostgreSQL, and Scikit-learn.
-        - Performance: Our model achieves 96.7% Accuracy and 0.95 ROC AUC.
-        STRICT OPERATING RULES:
-        - ONLY answer about RetainSpot or Churn.
-        - For unrelated topics, say: "I'm sorry, I specialize in RetainSpot and Customer Retention. How can I help with those?"
-        - Respond in the language used by the user.
-        """}
+        CONTEXT FROM DATABASE:
+        {context}
+        """
         
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[system_instructions] + messages,
-            temperature=0.7,
+            messages=[{"role": "system", "content": system_content}] + messages,
+            temperature=0.1,
         )
         
         return {"content": completion.choices[0].message.content}
@@ -493,6 +499,7 @@ async def update_agent_node(supervisor_output: dict):
     except Exception as e:
         print(f"Database Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/worker/delete")
 async def delete_agent_node(supervisor_output: dict):
     entities = supervisor_output.get("entities")
@@ -631,6 +638,145 @@ async def summarizer_agent_node(supervisor_output: dict):
                 "has_feedback": has_actual_fb
             }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/api/dashboard")
+async def get_dashboard_stats():
+    try:
+        engine = get_engine()
+        
+        # 1. Risk Segmentation
+        risk_query = text("""
+            SELECT 
+                CASE
+                    WHEN "Churn Score" >= 80 THEN 'Immediate Action'
+                    WHEN "Churn Score" >= 60 THEN 'Moderate'
+                    WHEN "Churn Score" >= 40 THEN 'At Risk'
+                    ELSE 'Good'
+                END AS segment,
+                COUNT(*)::int as count
+            FROM public.customers_info
+            GROUP BY segment
+        """)
+
+        # 2. Churn Status
+        churn_query = text("""
+            SELECT 
+                CASE 
+                    WHEN "Churn Score" > 50 THEN 'Churn'
+                    ELSE 'Not Churn'
+                END as status,
+                COUNT(*)::int as value
+            FROM public.customers_info
+            GROUP BY status
+        """)
+
+        # 3. Services Performance
+        services_query = text("""
+            SELECT 
+                "Internet Service" as service,
+                AVG("Churn Score")::float as avg_churn
+            FROM public.customers_info
+            GROUP BY "Internet Service"
+        """)
+
+        # 4. Sentiment (Fixed lowercase)
+        sentiment_query = text("""
+            SELECT 
+                CASE
+                    WHEN sentiment_label_roberta = 'positive' THEN 'Positive'
+                    WHEN sentiment_label_roberta = 'negative' THEN 'Negative'
+                    WHEN sentiment_label_roberta = 'neutral' THEN 'Neutral'
+                    ELSE 'Unknown'
+                END as sentiment,
+                COUNT(*)::int as value
+            FROM public.customer_feedback
+            WHERE sentiment_label_roberta IS NOT NULL
+            GROUP BY sentiment
+        """)
+
+        # 5. Loyalty
+        loyalty_query = text("""
+            SELECT 
+                CASE 
+                    WHEN "Tenure Months" >= 12 THEN 'Loyal'
+                    ELSE 'Not Loyal'
+                END as type,
+                COUNT(*)::int as value
+            FROM public.customers_info
+            GROUP BY type
+        """)
+
+        # 6. Tenure Distribution
+        tenure_query = text("""
+            SELECT 
+                FLOOR("Tenure Months" / 12) as years,
+                COUNT(*)::int as customers
+            FROM public.customers_info
+            WHERE "Tenure Months" IS NOT NULL
+            GROUP BY years
+            ORDER BY years
+        """)
+
+        # 7. Service Life
+        service_life_query = text("""
+            SELECT 
+                "Internet Service" as service,
+                AVG("Tenure Months")::float as avg_tenure
+            FROM public.customers_info
+            WHERE "Internet Service" IS NOT NULL
+            GROUP BY "Internet Service"
+            ORDER BY avg_tenure DESC
+        """)
+
+        with engine.connect() as conn:
+            risk_res = conn.execute(risk_query).fetchall()
+            churn_res = conn.execute(churn_query).fetchall()
+            services_res = conn.execute(services_query).fetchall()
+            sentiment_res = conn.execute(sentiment_query).fetchall()
+            loyalty_res = conn.execute(loyalty_query).fetchall()
+            tenure_res = conn.execute(tenure_query).fetchall()
+            service_life_res = conn.execute(service_life_query).fetchall()
+            
+            total_customers = conn.execute(text('SELECT COUNT(*)::int FROM public.customers_info')).scalar()
+
+        sentiment_data = [dict(row._mapping) for row in sentiment_res]
+        if not sentiment_data:
+            sentiment_data = [
+                {"sentiment": "Positive", "value": 0},
+                {"sentiment": "Neutral", "value": 0},
+                {"sentiment": "Negative", "value": 0}
+            ]
+
+        return {
+            "risk": [dict(row._mapping) for row in risk_res],
+            "churn": [dict(row._mapping) for row in churn_res],
+            "services": [dict(row._mapping) for row in services_res],
+            "sentiment": sentiment_data,
+            "loyalty": [dict(row._mapping) for row in loyalty_res],
+            "tenure": [dict(row._mapping) for row in tenure_res],
+            "serviceLife": [dict(row._mapping) for row in service_life_res],
+            "totalCustomers": total_customers
+        }
+
+    except Exception as e:
+        print(f"Database Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ai-insight")
+async def get_ai_insight(payload: dict):
+    context_prompt = payload.get("prompt")
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a senior customer intelligence analyst."},
+                {"role": "user", "content": f"{context_prompt}\nRules: Use ONLY the numbers given. Write exactly 5 sentences. No intro phrases."}
+            ],
+            temperature=0.2
+        )
+        return {"insight": completion.choices[0].message.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 if __name__ == "__main__":

@@ -1,0 +1,47 @@
+1. Executive Summary
+RetainSpot is an AI-driven Customer Retention Platform designed to reduce churn. It provides real-time insights into customer behavior, risk scoring, and revenue health through an intuitive executive dashboard.
+Motto: "Stop Losing Customers. Start Retaining Them."
+
+2. Core Features
+<b>Churn Prediction</b>: Uses a Random Forest model to provide real-time risk scores (0-100%), identifying at-risk customers before they leave.
+
+<b>Sentiment Analysis</b>: Powered by the RoBERTa model to understand customer emotions from feedback and interactions.
+
+<b>Customer Segmentation</b>: Automatically categorizes users by tenure, contract type, demographics, and behavioral patterns.
+
+<b>Revenue Analytics</b>: Tracks live metrics including MRR (Monthly Recurring Revenue), churn rates, and Customer Lifetime Value (LTV).
+
+<b>Smart Alerts</b>: Instant notifications triggered by significant shifts in key performance indicators (KPIs).
+
+<b>AI Recommendations</b>: Personalized retention strategies and suggestions tailored to individual customer history.
+
+3. Technical Stack & Performance
+<b>Frontend</b>: Built with React for a responsive, high-performance UI.
+
+<b>Backend</b>: Powered by FastAPI for rapid asynchronous API handling.
+
+<b>Database</b>: PostgreSQL for structured data and Firebase for real-time authentication.
+
+<b>Machine Learning</b>: Developed using Scikit-learn.
+
+<b>Simulation</b>: Uses SDV (Synthetic Data Vault) to generate realistic data samples for robust model training.
+
+<b>Accuracy</b>: The model achieves a 96.7% Accuracy rate and a 0.95 ROC AUC score.
+
+4. Onboarding & Access
+RetainSpot is currently Invite-Only. The process is as follows:
+
+Request: Users submit a "Request Access" form (Company name, Email, and Use case).
+
+Review: Requests are vetted within 24 hours.
+
+Setup: Accounts are provisioned with enterprise-grade security.
+
+Uptime: Guaranteed 99.9% uptime with 24/7 AI and expert support.
+
+5. AI Chatbot Guardrails (RetainSpot AI)
+Scope: Only answers queries related to RetainSpot features, tech stack, and general customer retention/churn topics.
+
+Off-topic: For unrelated questions, responds: "I'm sorry, I specialize in RetainSpot and Customer Retention. How can I help with those?"
+
+Formatting: Strictly uses HTML <b> tags for bolding features and • for bullet points. No markdown asterisks (**).

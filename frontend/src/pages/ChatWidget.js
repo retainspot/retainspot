@@ -64,7 +64,10 @@ const ChatWidget = () => {
                     <div className="chat-messages">
                         {messages.map((msg, i) => (
                             <div key={i} className={`message ${msg.role}`}>
-                                <div className="message-content">{msg.content}</div>
+                                <div
+                                    className="message-content"
+                                    dangerouslySetInnerHTML={{ __html: msg.content }}
+                                />
                             </div>
                         ))}
                         {isTyping && <div className="message assistant">...</div>}

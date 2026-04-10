@@ -47,7 +47,7 @@ const Customers = ({ customers: initialCustomers = [] }) => {
 
   const filteredCustomers = useMemo(() => {
     let result = customersData.filter(c => {
-      const id = c.CustomerID || ""; // Dùng C hoa
+      const id = c.CustomerID || "";
       return id.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
