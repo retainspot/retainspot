@@ -17,7 +17,7 @@ const INDIGO = "#6366f1";
 const GRAY = "#64748b";
 
 // ========== GEMINI API CONFIGURATION ==========
-const GEMINI_API_KEY = "AIzaSyDqmQ2n5rCWiBXoED6Oh2L8PG35JxhnaXs";
+const GEMINI_API_KEY = "...";
 
 // Initialize the Gemini client
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
