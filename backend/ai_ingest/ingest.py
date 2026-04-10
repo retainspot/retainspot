@@ -4,10 +4,10 @@ from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageCon
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-PINECONE_API_KEY = "pcsk_2QoaBL_TtJgaWwSxdRARiZDF5c4LTtHUjFPGnMoaMiTk7KfVAPrgHBwQjRb5UYB3oDqVJo"
+PINECONE_API_KEY = "..."
 INDEX_NAME = "retainspot-knowledge"
 
-pc = Pinecone(api_key='pcsk_2QoaBL_TtJgaWwSxdRARiZDF5c4LTtHUjFPGnMoaMiTk7KfVAPrgHBwQjRb5UYB3oDqVJo')
+pc = Pinecone(api_key='...')
 pinecone_index = pc.Index(INDEX_NAME)
 embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 

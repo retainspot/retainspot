@@ -30,6 +30,7 @@ app = FastAPI()
 load_dotenv()
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_KEY)
+
 Settings.llm = None 
 Settings.embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
@@ -77,16 +78,27 @@ CHURN_EXPLAINER = joblib.load('ml/models/explainer.pkl')
 def load_explainer(explainer_path):
     explainer = joblib.load(explainer_path)
     return explainer
+
 def apply_preprocessor(df, pipeline):
     X_transformed = df.copy()
     for name, step in pipeline.steps[:-1]:
         X_transformed = step.transform(X_transformed)
     return X_transformed
+
 def get_customer_explanation(customer_id):
     engine = get_engine()
     query = text("""
-        SELECT i.*, f.* FROM customers_info i 
-        JOIN customer_feedback f ON UPPER(i."CustomerID") = UPPER(f."customerID")
+        SELECT i.*, 
+               COALESCE(f."CustomerFeedback", '') as "CustomerFeedback",
+               COALESCE(f."sentiment_label_roberta", '') as "sentiment_label_roberta",
+               COALESCE(f."sentiment_score_roberta", 0.0) as "sentiment_score_roberta",
+               COALESCE(f."sentiment_num_roberta", 3.0) as "sentiment_num_roberta"
+        FROM customers_info i 
+        LEFT JOIN (
+            SELECT * FROM customer_feedback 
+            WHERE UPPER("customerID") = :cid 
+            ORDER BY feedback_date DESC LIMIT 1
+        ) f ON UPPER(i."CustomerID") = UPPER(f."customerID")
         WHERE UPPER(i."CustomerID") = :cid
     """)
     
@@ -97,8 +109,9 @@ def get_customer_explanation(customer_id):
         return None
 
     df_customer['Total Charges'] = pd.to_numeric(df_customer['Total Charges'], errors='coerce').fillna(0)
+    df_customer['HasFeedback'] = df_customer['CustomerFeedback'].apply(lambda x: x.strip() != "")
     customer_data = df_customer.drop(columns=['Churn Score'], errors='ignore')
-    
+
     customer_data_tf = apply_preprocessor(customer_data, CHURN_PIPELINE)
     customer_data_np = np.array(customer_data_tf, dtype=np.float64)
     feature_names = customer_data_tf.columns.tolist()
@@ -116,6 +129,7 @@ def get_customer_explanation(customer_id):
     }).sort_values('SHAP Value', ascending=False)
 
     return important_features
+
 @app.post("/api/predict-bulk-churn")
 def predict_bulk_churn():
     try:
@@ -163,14 +177,21 @@ def predict_bulk_churn():
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.get("/api/customers/{customer_id}/recommendation")
 def get_ai_recommendation(customer_id: str):
     features_df = get_customer_explanation(customer_id)
     if features_df is None:
         return {"recommendation": "Customer not found.", "top_influencing_factors": []}
     engine = get_engine()
-    feedback_query = text('SELECT "CustomerFeedback" FROM customer_feedback WHERE UPPER("customerID") = :cid')
-    
+    feedback_query = text("""
+        SELECT "CustomerFeedback" 
+        FROM customer_feedback 
+        WHERE UPPER("customerID") = :cid 
+        AND "CustomerFeedback" IS NOT NULL 
+        AND "CustomerFeedback" <> ''
+        ORDER BY feedback_date DESC LIMIT 1
+    """)
     customer_feedback = ""
     with engine.connect() as conn:
         result = conn.execute(feedback_query, {"cid": customer_id.upper()}).fetchone()
@@ -214,10 +235,13 @@ def get_ai_recommendation(customer_id: str):
 
         import json
         ai_response = json.loads(chat_completion.choices[0].message.content)
-        
+
+        rec = ai_response.get("category") or ai_response.get("recommendation") or "Outreach"
+        reas = ai_response.get("reason") or "Manual review required."
+
         return {
-            "recommendation": ai_response.get("category"),
-            "reason": ai_response.get("reason"),
+            "recommendation": rec,
+            "reason": reas,
             "top_influencing_factors": features_df.to_dict(orient='records')
         }
     except Exception as e:
@@ -245,27 +269,15 @@ def generate_customer():
         ]
         df_customers_info = synthetic_data.drop(columns=[c for c in cols_for_feedback if c in synthetic_data.columns], errors='ignore')
 
-        df_customer_feedback = pd.DataFrame([{
-            'customerID': customer_id.lower(),
-            'CustomerFeedback': '',
-            'HasFeedback': 'FALSE',
-            'sentiment_label_roberta': '',
-            'sentiment_score_roberta': 0.0,
-            'sentiment_num_roberta': 3.0
-        }])
-
         engine = get_engine()
         with engine.connect() as conn:
             df_customers_info.to_sql('customers_info', con=conn, if_exists='append', index=False)
-            df_customer_feedback.to_sql('customer_feedback', con=conn, if_exists='append', index=False)
             conn.commit()
-        display_dict = synthetic_data.to_dict(orient='records')[0]
-        display_dict.update(df_customer_feedback.to_dict(orient='records')[0])
-        return display_dict
+            
+        return synthetic_data.to_dict(orient='records')[0]
     except Exception as e:
         print(f"Database Error: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -283,14 +295,22 @@ def get_customers():
                 i."Churn Score" AS "Churn_Score",
                 i."Tenure Months" AS "Tenure_Months",
                 i."Senior Citizen" AS "Senior_Citizen",
-                f."CustomerFeedback" AS "CustomerFeedback"
+                f_top."CustomerFeedback" AS "CustomerFeedback",
+                f_top."sentiment_label_roberta" AS "sentiment_label_roberta"
             FROM public.customers_info i
-            LEFT JOIN public.customer_feedback f ON UPPER(i."CustomerID") = UPPER(f."customerID")
+            LEFT JOIN (
+                SELECT DISTINCT ON (UPPER("customerID")) 
+                    UPPER("customerID") as clean_cid, 
+                    "CustomerFeedback", 
+                    "sentiment_label_roberta",
+                    interactionid
+                FROM public.customer_feedback
+                ORDER BY UPPER("customerID"), interactionid DESC
+            ) f_top ON UPPER(i."CustomerID") = f_top.clean_cid
         """)
         
         with engine.connect() as conn:
             df = pd.read_sql(query, conn)
-        
         df = df.fillna("") 
         return df.to_dict(orient='records')
     except Exception as e:
@@ -303,49 +323,55 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
     try:
         engine = get_engine()
         feedback_text = payload.get("feedback")
-        
         label, score, num = predict_sentiment(feedback_text)
-        has_feedback = True if feedback_text and feedback_text.strip() != "" else False
 
         with engine.connect() as conn:
             save_fb_query = text("""
                 INSERT INTO public.customer_feedback (
-                    "customerID", "CustomerFeedback", "HasFeedback", 
-                    "sentiment_label_roberta", "sentiment_score_roberta", "sentiment_num_roberta"
+                    "customerID", "CustomerFeedback", "sentiment_label_roberta", 
+                    "sentiment_score_roberta", "sentiment_num_roberta", "feedback_date"
                 )
-                VALUES (:cid, :fb, :has_fb, :label, :score, :num)
-                ON CONFLICT ("customerID") 
-                DO UPDATE SET 
-                    "CustomerFeedback" = EXCLUDED."CustomerFeedback",
-                    "HasFeedback" = EXCLUDED."HasFeedback",
-                    "sentiment_label_roberta" = EXCLUDED."sentiment_label_roberta",
-                    "sentiment_score_roberta" = EXCLUDED."sentiment_score_roberta",
-                    "sentiment_num_roberta" = EXCLUDED."sentiment_num_roberta"
+                VALUES (:cid, :fb, :label, :score, :num, NOW())
             """)
             conn.execute(save_fb_query, {
                 "cid": customer_id.lower(),
                 "fb": feedback_text,
-                "has_fb": has_feedback,
                 "label": label,
                 "score": score,
                 "num": num
             })
 
-            select_query = text("""
-                SELECT i.*, f.* FROM customers_info i 
-                JOIN customer_feedback f ON UPPER(i."CustomerID") = UPPER(f."customerID")
-                WHERE UPPER(i."CustomerID") = :cid
+            info_query = text('SELECT * FROM customers_info WHERE UPPER("CustomerID") = :cid')
+            df_info = pd.read_sql(info_query, conn, params={"cid": customer_id.upper()})
+
+            fb_query = text("""
+                SELECT "CustomerFeedback", "sentiment_label_roberta", "sentiment_score_roberta", "sentiment_num_roberta"
+                FROM customer_feedback 
+                WHERE UPPER("customerID") = :cid 
+                ORDER BY "feedback_date" DESC LIMIT 1
             """)
-            df_customer = pd.read_sql(select_query, conn, params={"cid": customer_id.upper()})
-            
-            new_proba = CHURN_PIPELINE.predict_proba(df_customer)
+            df_fb = pd.read_sql(fb_query, conn, params={"cid": customer_id.upper()})
+
+            if df_fb.empty:
+                df_info['CustomerFeedback'] = ""
+                df_info['HasFeedback'] = False
+                df_info['sentiment_label_roberta'] = ''
+                df_info['sentiment_score_roberta'] = 0.0
+                df_info['sentiment_num_roberta'] = 3.0
+            else:
+                df_info['CustomerFeedback'] = df_fb.iloc[0]['CustomerFeedback']
+                df_info['HasFeedback'] = True
+                df_info['sentiment_label_roberta'] = df_fb.iloc[0]['sentiment_label_roberta']
+                df_info['sentiment_score_roberta'] = df_fb.iloc[0]['sentiment_score_roberta']
+                df_info['sentiment_num_roberta'] = df_fb.iloc[0]['sentiment_num_roberta']
+
+            new_proba = CHURN_PIPELINE.predict_proba(df_info)
             new_churn_score = int(new_proba[0][1] * 100)
             
             conn.execute(
                 text('UPDATE customers_info SET "Churn Score" = :s WHERE UPPER("CustomerID") = :cid'),
                 {"s": new_churn_score, "cid": customer_id.upper()}
             )
-            
             conn.commit()
 
         return {
@@ -353,7 +379,6 @@ def save_customer_feedback(customer_id: str, payload: dict = Body(...)):
             "new_churn_score": new_churn_score,
             "sentiment": {"label": label, "score": score}
         }
-
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -601,7 +626,13 @@ async def summarizer_agent_node(supervisor_output: dict):
             query = text("""
                 SELECT i.*, f."CustomerFeedback", f."sentiment_label_roberta"
                 FROM customers_info i
-                LEFT JOIN customer_feedback f ON UPPER(i."CustomerID") = UPPER(f."customerID")
+                LEFT JOIN (
+                    SELECT "customerID", "CustomerFeedback", "sentiment_label_roberta"
+                    FROM customer_feedback
+                    WHERE UPPER("customerID") = UPPER(:tid)
+                    ORDER BY interactionid DESC
+                    LIMIT 1
+                ) f ON UPPER(i."CustomerID") = UPPER(f."customerID")
                 WHERE UPPER(i."CustomerID") = UPPER(:tid)
             """)
             res = connection.execute(query, {"tid": target_id}).fetchone()
@@ -617,7 +648,7 @@ async def summarizer_agent_node(supervisor_output: dict):
 
             data_context = (
                 f"Customer {target_id} is in {data.get('City')}, using {data.get('Contract')} contract. "
-                f"Monthly bill is ${data.get('Monthly Charges')}. Churn Risk Score: {data.get('Churn Score')}%. "
+                f"Monthly bill is ${data.get('Monthly Charges')}. Churn Risk Score: {data.get('Churn Score')}. "
                 f"Feedback Status: {fb_status}. Sentiment: {sentiment}."
             )
 
@@ -628,7 +659,10 @@ async def summarizer_agent_node(supervisor_output: dict):
 
             llm_res = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=[{"role": "system", "content": "You are a senior CRM analyst."},
+                messages=[{"role": "system", "content": """You are a senior CRM analyst. 
+                STRICT RULE: Always use the EXACT numbers provided in the context. 
+                Do not question or attempt to correct the Churn Risk Score. 
+                Provide the report in a professional tone."""},
                           {"role": "user", "content": prompt}]
             )
             clean_report = re.sub(r'\*\*', '', llm_res.choices[0].message.content.strip())
@@ -779,5 +813,6 @@ async def get_ai_insight(payload: dict):
         return {"insight": completion.choices[0].message.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
