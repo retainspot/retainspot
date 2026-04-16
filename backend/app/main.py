@@ -685,9 +685,7 @@ async def get_dashboard_stats():
         risk_query = text("""
             SELECT 
                 CASE
-                    WHEN "Churn Score" >= 80 THEN 'Immediate Action'
-                    WHEN "Churn Score" >= 60 THEN 'Moderate'
-                    WHEN "Churn Score" >= 40 THEN 'At Risk'
+                    WHEN "Churn Score" >= 40 THEN 'Immediate Action'
                     ELSE 'Good'
                 END AS segment,
                 COUNT(*)::int as count

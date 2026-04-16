@@ -64,7 +64,6 @@ const Sidebar = ({ activeTab, setActiveTab, user, handleLogout }) => {
             className={`nav-item ${activeTab === item.label ? "active" : ""}`}
           >
             <div className="nav-item-content">
-              <span>{item.icon}</span>
               <span className="nav-label">{item.label}</span>
             </div>
           </div>

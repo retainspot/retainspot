@@ -273,9 +273,9 @@ const Dashboard = ({ serverData }) => {
   };
   const closeModal = () => { setModalOpen(false); setSelectedChart(null); setAiResponse(""); };
 
-  const riskBg = ["#FFE4E6", "#FFF3E0", "#EDE9FE", "#DCFCE7"];
-  const riskDot = [RED, ORANGE, YELLOW, GREEN];
-  const riskLabels = ["Immediate Action", "Moderate", "Average", "Good"];
+  const riskBg = ["#FFE4E6", "#DCFCE7"];
+  const riskDot = [RED, GREEN];
+  const riskLabels = ["Immediate Action", "Good"];
 
   const topCategories = [...(data.serviceLife || [])].sort((a, b) => b.avg_tenure - a.avg_tenure);
   const maxTenure = topCategories[0]?.avg_tenure || 1;
@@ -321,7 +321,7 @@ const Dashboard = ({ serverData }) => {
       {/* ══ ROW 2: Retention | Satisfaction | Longevity ══ */}
       <div className="db-row2">
         <div className="db-card db-clickable" onClick={() => handleCardClick("Retention vs Churn", data.services, "Retention by Service")}>
-          <h3 className="db-card-title">Retention by Service</h3>
+          <h3 className="db-card-title">Retention by Internet Service</h3>
           {/* Bọc thêm div này */}
           <div className="db-chart-container">
             <RetentionBar data={data.services} width={400} height={280} />
