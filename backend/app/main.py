@@ -295,6 +295,7 @@ def get_customers():
                 i."Churn Score" AS "Churn_Score",
                 i."Tenure Months" AS "Tenure_Months",
                 i."Senior Citizen" AS "Senior_Citizen",
+                i."Satisfaction Score" AS "Satisfaction_Score",
                 f_top."CustomerFeedback" AS "CustomerFeedback",
                 f_top."sentiment_label_roberta" AS "sentiment_label_roberta"
             FROM public.customers_info i

@@ -63,12 +63,14 @@ const Customers = ({ customers: initialCustomers = [] }) => {
   const stats = useMemo(() => {
     const totalCustomers = customersData.length;
     const highRiskCustomers = customersData.filter(c => parseFloat(c.Churn_Score || 0) > 75).length;
+    const totalSatisfactionScore = customersData.reduce((acc, c) => acc + parseFloat(c.Satisfaction_Score || 0), 0);
 
     return {
       total: totalCustomers,
       active: totalCustomers - highRiskCustomers,
       churned: highRiskCustomers,
       churnRate: totalCustomers > 0 ? ((highRiskCustomers / totalCustomers) * 100).toFixed(1) : 0,
+      avgSatisfactionScore: totalCustomers > 0 ? (totalSatisfactionScore / totalCustomers).toFixed(1) : 0,
       seniorCitizens: customersData.filter(c =>
         c.Senior_Citizen === "Yes" || isTrue(c.Senior_Citizen)
       ).length
@@ -148,8 +150,8 @@ const Customers = ({ customers: initialCustomers = [] }) => {
       <div className="customers-stats-row">
         {[
           { label: 'Total Customers', val: stats.total.toLocaleString(), color: '#00AC4F', trend: `${stats.active.toLocaleString()} Stable`, icon: '👥', iconBg: '#D3FFE7' },
-          { label: 'Churned', val: stats.churned.toLocaleString(), color: '#D0004B', trend: `${stats.churnRate}% Rate`, icon: '❌', iconBg: '#FFE2E5' },
-          { label: 'Senior Citizens', val: stats.seniorCitizens.toLocaleString(), icon: '👴', iconBg: '#F3E8FF' }
+          { label: 'Churn Risk', val: stats.churned.toLocaleString(), color: '#D0004B', trend: `${stats.churnRate}% Rate`, icon: '❌', iconBg: '#FFE2E5' },
+          { label: 'Satisfaction Score', val: `${stats.avgSatisfactionScore.toLocaleString()}`, icon: '😊', iconBg: '#F3E8FF' }
         ].map((item, idx) => (
           <div key={idx} className="customer-stat-card">
             <div className="stat-circle-icon" style={{ backgroundColor: item.iconBg }}>{item.icon}</div>
