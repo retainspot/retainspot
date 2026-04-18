@@ -51,8 +51,8 @@ const AgentChat = () => {
         const chatContext = messages.slice(-5).map(m => ({
         role: m.sender === 'user' ? 'user' : 'assistant',
         content: m.text
-        }));
-
+        }));    
+        
         setIsThinking(true);
         setActiveAgentId(null);
         setPendingAction(null);
